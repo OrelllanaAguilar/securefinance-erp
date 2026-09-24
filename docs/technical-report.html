@@ -1,0 +1,1535 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecureFinance ERP — Documento técnico</title>
+<style>
+  :root { color: #232323; background: #f8f7f4; font-family: "Segoe UI", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; line-height: 1.48; font-size: 10.5pt; }
+  main { max-width: 1024px; margin: 0 auto; padding: 40px 52px 80px; background: white; }
+  .cover { min-height: 88vh; display: grid; align-content: center; border-top: 8px solid #b99a59; page-break-after: always; }
+  .cover-mark { color: #7a5b20; font-size: 14px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+  .cover h1 { margin: 20px 0 8px; font-size: 38px; line-height: 1.08; }
+  .cover h2 { margin: 0 0 36px; color: #5f5c56; font-size: 22px; font-weight: 500; }
+  .cover-meta { border-left: 3px solid #b99a59; padding-left: 18px; color: #5f5c56; }
+  .document-section { page-break-before: always; }
+  h2 { margin-top: 0; color: #201a0f; font-size: 25px; border-bottom: 2px solid #d8d3c8; padding-bottom: 8px; }
+  h3 { margin-top: 28px; color: #3b3428; font-size: 18px; }
+  h4, h5, h6 { margin-top: 22px; color: #4c4437; }
+  p, li { orphans: 3; widows: 3; }
+  a { color: #7a5b20; text-decoration: none; }
+  code { font-family: Consolas, monospace; background: #f4ecdc; padding: 1px 4px; border-radius: 3px; }
+  pre { padding: 14px; border: 1px solid #d8d3c8; background: #f8f7f4; white-space: pre-wrap; overflow-wrap: anywhere; page-break-inside: avoid; }
+  pre code { padding: 0; background: transparent; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 8.5pt; }
+  th, td { border: 1px solid #d8d3c8; padding: 6px 7px; vertical-align: top; text-align: left; }
+  th { background: #f4ecdc; color: #382b16; }
+  tr { page-break-inside: avoid; }
+  blockquote { margin: 16px 0; padding: 10px 16px; border-left: 3px solid #b99a59; background: #f8f7f4; }
+  hr { border: 0; border-top: 1px solid #d8d3c8; margin: 28px 0; }
+  @page { size: A4; margin: 16mm 14mm 18mm; }
+  @media print { body, main { background: white; } main { max-width: none; padding: 0; } a { color: #232323; } }
+</style>
+</head>
+<body><main>
+  <section class="cover">
+    <div class="cover-mark">SecureFinance ERP · versión académica 2.0</div>
+    <h1>Documento técnico</h1>
+    <h2>Arquitectura, seguridad, operación, pruebas y trazabilidad</h2>
+    <div class="cover-meta">
+      <p><strong>Stack:</strong> React, Express y Microsoft SQL Server</p>
+      <p><strong>Generado:</strong> 24 de septiembre de 2026 a las 9:48 a. m.</p>
+      <p>Las pruebas conservan su estado documentado; este PDF no convierte revisión estática en evidencia de ejecución.</p>
+    </div>
+  </section>
+  <section class="document-section" data-source="README.md"><h2>Documentación de SecureFinance ERP</h2>
+<p>Esta carpeta documenta la versión 2.0 de SecureFinance ERP y su implementación local con React, Express, Node.js y Microsoft SQL Server. Es una entrega académica/local: <strong>no está declarada, certificada ni preparada para producción</strong>.</p>
+<p>La referencia funcional citada por el proyecto es <code>SecureFinance_ERP_Casos_de_Uso (1).pdf</code>, pero ese archivo no forma parte del workspace actual. Los UC01–UC14, PA01–PA32 y QC01–QC08 resumidos en estos documentos son la línea base disponible para esta auditoría; antes de una aceptación formal debe compararse también el PDF original.</p>
+<h3>Fuentes y criterio de verdad</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Pregunta</th><th>Fuente autoritativa en esta entrega</th>
+</tr></thead><tbody>
+<tr><td>¿Qué comportamiento se exige?</td><td>Especificación funcional y resultados esperados PA/QC. El código no puede rebajar una expectativa.</td></tr>
+<tr><td>¿Qué está implementado ahora?</td><td>Archivos versionados de <code>apps/</code>, <code>database/</code> y <code>scripts/</code>, contrastados con contratos y trazabilidad.</td></tr>
+<tr><td>¿Qué ocurrió realmente al ejecutar?</td><td>Registro de corrida y archivos enlazados desde <a href="test-matrix.md">Matriz PA01–PA32</a>, conforme a la <a href="evidence-guide.md">Guía de evidencia</a>.</td></tr>
+</tbody></table></div>
+<p>Una relación en la trazabilidad o la presencia de un SP demuestra cobertura estática, no comportamiento observado. Si estas tres capas discrepan, se registra el hueco; no se convierte la intención en evidencia.</p>
+<h3>Estado de verificación</h3>
+<ul><li>PA01–PA32 permanecen <strong>Pendiente</strong> en el registro oficial.</li><li>QC01–QC08 permanecen <strong>Pendiente</strong> y son objetivos; no contienen resultados ni métricas inferidas.</li><li>No existe un manifiesto de evidencia de runtime bajo <code>docs/evidence/</code>. Las salidas de lint, pruebas aisladas o compilación que se ejecuten fuera de ese flujo no cambian por sí solas una PA/QC.</li><li>La documentación distingue diseño, procedimiento de prueba y resultado observado. Leer código no equivale a aprobar una prueba.</li><li><code>GET /api/health</code> y <code>pnpm sql:verify</code> son comprobaciones de conectividad, no una certificación funcional, de seguridad, continuidad u operación offline.</li></ul>
+<h4>Inventario estático contrastado</h4>
+<p>La inspección del código fuente encontró 41 procedimientos, 6 funciones, 4 tipos de tabla y 11 triggers SQL. El rol <code>SecureFinanceApiExecutor</code> recibe 36 SP públicos; los otros 5 SP son internos. La API expone 36 operaciones HTTP concretas si las tres categorías de auditoría se cuentan por separado. Estos conteos sirven para detectar deriva documental; no prueban que una instalación haya sido ejecutada correctamente.</p>
+<h4>Cobertura automatizada y huecos conocidos</h4>
+<ul><li>Playwright cubre las tres páginas públicas en Claro/Oscuro y 320/768/1280. Una configuración separada recorre 14 vistas privadas contra API y SQL reales, con cuentas sintéticas de una base <code>_Test</code>, dos roles, dos temas, comprobación Axe y capturas en <code>docs/evidence/runtime/ui/</code>. Es cobertura parcial: no sustituye teclado/zoom completo, diálogos en edición ni toda PA13–PA25.</li><li><code>pnpm test:integration</code>, habilitado con <code>RUN_SQL_INTEGRATION=true</code>, comprueba con el login real de la API el SP autorizado y la denegación de lectura, escritura y procedimientos internos. No sustituye las carreras ni el aislamiento completo de PA29.</li><li>No hay generador del dataset QC de 1,000 clientes, 10,000 productos, 50,000 facturas y 250,000 líneas, ni arnés de carga de cinco sesiones; PA30/QC01/QC02 no son ejecutables con el volumen prescrito tal como está empaquetado.</li><li><code>database/tests/04_sale-rollback-fault.sql</code> inyecta un fallo después del encabezado mediante un trigger temporal, exclusivamente con conexión administrativa y base <code>_Test</code>; la misma reversión elimina trigger y fixtures. Demuestra un punto concreto, no toda la matriz de fallos de PA06/QC03.</li><li>Los scripts de respaldo/restauración y las pruebas SQL son herramientas de ejecución; sin acta, salida íntegra y evidencia enlazada no demuestran PA29, PA31 ni QC07.</li></ul>
+<h3>Requisitos de instalación</h3>
+<ul><li>Windows con PowerShell 7 o Windows PowerShell 5.1.</li><li>Node.js <code>&gt;=24.18.0 &lt;25</code> y pnpm <code>10.34.4</code>, exactamente como declara <code>package.json</code>.</li><li>Microsoft SQL Server 2022 (16.x) o posterior. El script selecciona compatibilidad 160 para 2022 y 170 para 2025 o posterior.</li><li><code>sqlcmd</code> disponible en <code>PATH</code>, con soporte de modo SQLCMD y de la opción <code>-C</code> usada por los scripts.</li><li>Una cuenta Windows con autenticación integrada y autoridad para crear la base, el login SQL y el usuario de base.</li><li>Autenticación SQL habilitada y TCP local configurado para que la API use el login de mínimo privilegio. Los valores predeterminados esperan administración en <code>.\SQLEXPRESS</code> y aplicación en <code>127.0.0.1:1433</code>; adapte instancia/puerto a la configuración real.</li><li>La instancia debe exponer <code>Central America Standard Time</code> en <code>sys.time_zone_info</code>, condición que el instalador comprueba antes de crear la configuración de Guatemala.</li><li>Un navegador actual para uso interactivo. La suite E2E incluida usa el canal local <code>msedge</code>; no se declara una matriz de navegadores aprobada hasta ejecutar PA24.</li></ul>
+<p>Los 16 GB de RAM y SSD de <a href="quality-plan.md">Plan de calidad</a> pertenecen al equipo de referencia para rendimiento; no son un mínimo funcional demostrado. Se necesita Internet para obtener dependencias la primera vez. El funcionamiento posterior sin Internet sigue siendo el objetivo de PA26/PA32, no un resultado registrado.</p>
+<h3>Instalación local reproducible</h3>
+<p>Desde la raíz del repositorio:</p>
+<pre data-language="powershell"><code>pnpm install --frozen-lockfile
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Install-Database.ps1 `
+  -AdminServerInstance '.\SQLEXPRESS' `
+  -ApplicationServer '127.0.0.1' `
+  -ApplicationPort 1433 `
+  -DatabaseName 'SecureFinanceERP' `
+  -ApiLoginName 'SecureFinanceApi'</code></pre>
+<p>Para una base nueva, si se omiten <code>ApiSqlPassword</code> y <code>BootstrapPassword</code>, el helper genera valores aleatorios. La secuencia implementada es:</p>
+<ol><li><code>database/install.sql</code>: base, esquema, funciones, SP, triggers, rol y permisos;</li><li><code>database/provision-api-login.sql</code>: login/usuario SQL y pertenencia exclusiva a <code>SecureFinanceApiExecutor</code>;</li><li><code>database/provision-bootstrap-admin.sql</code>: primer administrador con cambio obligatorio;</li><li>opcionalmente <code>database/seed-demo.sql</code>, solo con <code>-IncludeDemoData</code> y un nombre terminado en <code>_Test</code>;</li><li><code>.env</code> y, para una cuenta bootstrap nueva, <code>secrets/first-access.txt</code> con intento de ACL restringida al usuario actual.</li></ol>
+<p>No copie a evidencia ni al repositorio <code>.env</code>, <code>secrets/</code>, <code>private-mailbox/</code>, contraseñas o tokens. Revise cualquier advertencia de ACL y elimine <code>secrets/first-access.txt</code> después de entregar la credencial por un canal privado y completar el primer cambio de contraseña.</p>
+<p>El helper no modifica una base existente sin <code>-AllowExisting</code>. En ese modo exige la contraseña SQL conocida mediante <code>-ApiSqlPassword</code> como <code>SecureString</code>, no recupera secretos y no restablece una cuenta bootstrap existente. Haga copia previa y trate cualquier cambio de esquema como migración administrativa; que los scripts sean reejecutables no sustituye un plan de migración.</p>
+<p>Para desarrollo:</p>
+<pre data-language="powershell"><code>pnpm dev</code></pre>
+<p>Abra <code>http://127.0.0.1:5173</code>. Para ejecución integrada de un solo origen:</p>
+<pre data-language="powershell"><code>pnpm build
+pnpm start</code></pre>
+<p>Abra <code>http://127.0.0.1:3000</code>. Los valores predeterminados son HTTP local, cookie no <code>Secure</code>, certificado SQL confiado explícitamente y buzón de recuperación en archivo; son elecciones de laboratorio, no una configuración productiva.</p>
+<h4>Comprobaciones posteriores y su alcance</h4>
+<pre data-language="powershell"><code>pnpm lint
+pnpm test
+pnpm build
+pnpm sql:verify
+pnpm test:e2e
+$env:RUN_SQL_INTEGRATION='true'; pnpm test:integration; Remove-Item Env:RUN_SQL_INTEGRATION
+pnpm test:smoke
+pnpm test:e2e:private</code></pre>
+<ul><li><code>lint</code>, Vitest y <code>build</code> comprueban calidad estática, pruebas aisladas y compilación según las suites presentes.</li><li><code>sql:verify</code> usa <code>.env</code> y ejecuta únicamente <code>dbo.sp_VerificarEstado</code> con la cuenta API.</li><li><code>test:e2e</code> ejecuta únicamente el humo público descrito arriba con sesión simulada y Microsoft Edge; no usa el login, la API integrada ni la base real.</li><li><code>test:integration</code>, <code>test:smoke</code> y <code>test:e2e:private</code> requieren la base <code>_Test</code> preparada. El humo crea datos sintéticos y guarda las credenciales vigentes bajo <code>secrets/</code>; el recorrido privado no escribe credenciales, cookies, trazas ni vídeo.</li><li>Las pruebas de <code>database/tests/</code> se ejecutan expresamente contra una base <code>_Test</code> con una cuenta administrativa y conservando salida/código de retorno. Su mera presencia no cambia el estado PA.</li></ul>
+<h3>Índice</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Documento</th><th>Contenido</th>
+</tr></thead><tbody>
+<tr><td>Este README</td><td>Estado real, requisitos, instalación y huecos de verificación.</td></tr>
+<tr><td><a href="architecture.md">Arquitectura</a></td><td>Componentes, límites de confianza, flujos y ejecución local.</td></tr>
+<tr><td><a href="physical-erd.md">ERD físico</a></td><td>Entidades, claves, relaciones, restricciones e índices principales.</td></tr>
+<tr><td><a href="stored-procedures.md">Catálogo SQL</a></td><td>Tipos, funciones, procedimientos, triggers y permisos.</td></tr>
+<tr><td><a href="api-contracts.md">Contratos API</a></td><td>Autenticación, errores, paginación y endpoints HTTP.</td></tr>
+<tr><td><a href="technical-decisions.md">Decisiones técnicas</a></td><td>Seguridad, SHA2_512 académico, sesiones, TVP, importes y auditoría.</td></tr>
+<tr><td><a href="traceability.md">Trazabilidad</a></td><td>UC → pantalla → endpoint → procedimiento → PA.</td></tr>
+<tr><td><a href="user-manual.md">Manual de usuario</a></td><td>Operación por módulo, temas Claro/Oscuro/Sistema y resolución de estados.</td></tr>
+<tr><td><a href="backup-restore.md">Respaldo y restauración</a></td><td>Copias, retención, restauración aislada y acta RPO/RTO.</td></tr>
+<tr><td><a href="test-matrix.md">Matriz PA01–PA32</a></td><td>Escenario, resultado esperado y campos de ejecución.</td></tr>
+<tr><td><a href="quality-plan.md">Plan QC01–QC08</a></td><td>Dataset, mediciones, percentiles y criterios de calidad.</td></tr>
+<tr><td><a href="demo-script.md">Guion de demostración</a></td><td>Recorrido cronometrado de doce minutos.</td></tr>
+<tr><td><a href="evidence-guide.md">Guía de evidencia</a></td><td>Capturas, registros, redacción y manifiesto verificable.</td></tr>
+<tr><td><a href="verification-results.md">Verificación técnica ejecutada</a></td><td>Comprobaciones parciales observadas en el entorno local, sin cambiar el estado PA/QC.</td></tr>
+</tbody></table></div>
+<h3>Convenciones</h3>
+<ul><li>Fechas almacenadas: UTC; presentación: <code>dd/mm/aaaa</code>, hora de 24 horas en <code>America/Guatemala</code> para la configuración de demostración.</li><li>Moneda de demostración: <code>GTQ</code>, siempre con código y dos decimales.</li><li>Los importes viajan por HTTP como cadenas decimales; SQL Server conserva <code>DECIMAL(19,2)</code>.</li><li>Identificadores de correlación: UUID en <code>X-Correlation-Id</code> y en las respuestas de error.</li><li>Los ejemplos que contienen nombres de servidor, rutas o cuentas son marcadores y deben adaptarse sin incluir secretos.</li></ul></section>
+<section class="document-section" data-source="architecture.md"><h2>Arquitectura</h2>
+<h3>Objetivo y alcance</h3>
+<p>SecureFinance ERP es una aplicación web local de un solo origen para autenticación, perfiles, ventas, productos, clientes, reportes, usuarios, roles y auditoría. La interfaz nunca abre conexiones a SQL Server. La API de Express es el único canal de operación de la aplicación y solo ejecuta procedimientos almacenados con parámetros tipados. La instalación, migración, respaldo y restauración usan un canal administrativo separado.</p>
+<p>Quedan fuera del alcance devoluciones, anulaciones, compras, contabilidad general, múltiples sucursales y facturación electrónica.</p>
+<h3>Topología local</h3>
+<pre data-language="mermaid"><code>flowchart LR
+    U[Usuario en navegador] --&gt;|HTTPS/HTTP local, mismo origen| E[Express API&lt;br/&gt;127.0.0.1]
+    E --&gt;|Archivos compilados| W[React + Vite dist]
+    E --&gt;|TDS, parámetros tipados,&lt;br/&gt;procedimientos almacenados| S[(SQL Server&lt;br/&gt;SecureFinanceERP)]
+    E --&gt;|Archivo privado de un solo uso| M[Buzón local de recuperación&lt;br/&gt;fuera de dist]
+    A[Administrador local] --&gt;|sqlcmd / PowerShell&lt;br/&gt;canal administrativo| S
+    A --&gt;|BACKUP / RESTORE&lt;br/&gt;ubicación protegida| B[(Copias de seguridad)]</code></pre>
+<h4>Límites de confianza</h4>
+<ol><li><strong>Navegador no confiable.</strong> Puede alterar rutas, cuerpos, precios, identificadores y permisos visibles. La API y SQL vuelven a validar identidad, propiedad, versión y autorización.</li><li><strong>API de aplicación.</strong> Posee una cuenta SQL de mínimo privilegio. No instala objetos, no ejecuta DDL y no realiza DML directo.</li><li><strong>Base de datos.</strong> Es la autoridad para sesiones, permisos, precios, IVA, stock, idempotencia, transacciones y auditoría.</li><li><strong>Canal administrativo.</strong> Instala/migra objetos, crea el login mínimo, prepara el primer administrador y opera copias. No se expone por HTTP.</li><li><strong>Buzón de recuperación.</strong> Es privado, local y ajeno al directorio público; el endpoint nunca devuelve el token.</li></ol>
+<h3>Componentes</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Componente</th><th>Responsabilidad</th><th>No debe hacer</th>
+</tr></thead><tbody>
+<tr><td><code>apps/web</code></td><td>SPA React, rutas, accesibilidad, estados, temas y consumo de <code>/api</code>.</td><td>Conectarse a SQL, decidir permisos definitivos o calcular importes contables autoritativos.</td></tr>
+<tr><td><code>apps/api</code></td><td>Contrato HTTP, esquema de entrada, cookies, CSRF, correlación, autorización y adaptación de recordsets.</td><td>Ejecutar DDL/DML directo, confiar en <code>UsuarioId</code> del cliente o revelar errores SQL.</td></tr>
+<tr><td><code>database</code></td><td>Esquema, reglas, SP, TVP/TVF, transacciones, permisos y auditoría.</td><td>Confiar en precios/actor enviados por el navegador o sembrar datos al arrancar la API.</td></tr>
+<tr><td>Pruebas distribuidas en <code>apps/*</code>, <code>database/tests</code> y <code>tests</code></td><td>Vitest, integración con la identidad SQL real, humo HTTP, Playwright público/privado y scripts SQL; sigue sin existir arnés de carga de cinco sesiones.</td><td>Sustituir SQL Server por mocks para afirmar ACID, TVP, carreras o restauración.</td></tr>
+<tr><td><code>docs</code></td><td>Operación, contratos, trazabilidad y evidencia.</td><td>Marcar una PA aprobada por inspección de código.</td></tr>
+</tbody></table></div>
+<h3>Ejecución</h3>
+<h4>Desarrollo</h4>
+<ul><li>Vite escucha únicamente en <code>127.0.0.1</code> y reenvía <code>/api</code> a Express.</li><li>Express escucha únicamente en <code>127.0.0.1</code>.</li><li><code>pnpm dev</code> inicia web y API; SQL Server debe estar activo y preparado.</li></ul>
+<h4>Inicio integrado</h4>
+<ol><li><code>pnpm build</code> compila <code>apps/web/dist</code>.</li><li><code>pnpm start</code> inicia Express.</li><li>Express sirve <code>/api/*</code> y, bajo el mismo origen, los archivos compilados y el fallback de la SPA.</li><li>El diseño no usa CDN ni servicios externos en runtime. La operación sin Internet es un objetivo de PA26/PA32 aún Pendiente; Playwright usa el Microsoft Edge instalado localmente y no descarga un navegador durante la prueba.</li></ol>
+<h3>Flujo de una solicitud protegida</h3>
+<pre data-language="mermaid"><code>sequenceDiagram
+    participant B as Navegador
+    participant A as Express
+    participant D as SQL Server
+    B-&gt;&gt;A: Solicitud + cookie HttpOnly + CSRF si modifica estado
+    A-&gt;&gt;A: Origen, JSON estricto y CorrelationId
+    A-&gt;&gt;D: sp_ValidarSesionApi(hash, IP, touch)
+    D--&gt;&gt;A: usuario, vigencia, roles y permisos actuales
+    A-&gt;&gt;A: cambio obligatorio / permiso / CSRF
+    A-&gt;&gt;D: procedimiento funcional + SesionHash + IP + CorrelationId
+    D-&gt;&gt;D: valida actor y establece contexto de auditoría
+    D-&gt;&gt;D: operación transaccional/autorizada
+    D--&gt;&gt;A: recordsets públicos
+    A--&gt;&gt;B: JSON o error español + CorrelationId</code></pre>
+<p>Las consultas automáticas que solo comprueban sesión o apariencia deben usar <code>touch=false</code> para no prolongar artificialmente los 30 minutos de inactividad. La duración absoluta es de ocho horas.</p>
+<h3>Autenticación y autorización</h3>
+<ul><li>Sesión opaca aleatoria; en SQL se guarda únicamente su digest SHA-512.</li><li>Cookie <code>HttpOnly</code>, <code>SameSite=Strict</code>, <code>Path=/</code>; <code>Secure</code> cuando el origen sea HTTPS.</li><li>CSRF de encabezado para métodos que cambian estado y comprobación de mismo origen.</li><li>Cinco fallos en quince minutos se limitan por cuenta e IP en SQL; el límite HTTP general es complementario.</li><li>Cada operación protegida vuelve a comprobar vigencia, usuario activo, revocación y permisos desde SQL.</li><li>Ocultar navegación mejora la UX, pero no concede ni retira autoridad.</li><li>Una sesión con cambio inicial obligatorio solo accede a cambio de contraseña, apariencia local y cierre.</li></ul>
+<h4>Política base de roles</h4>
+<div class="table-scroll"><table><thead><tr>
+<th>Perfil</th><th>Capacidades iniciales</th>
+</tr></thead><tbody>
+<tr><td>Administrador bootstrap</td><td><code>provision-bootstrap-admin.sql</code> asigna los permisos activos de administración, catálogos, reportes y auditoría, pero excluye <code>VENTAS_CREAR</code>; vender exige asignarlo explícitamente mediante otro rol.</td></tr>
+<tr><td>Cajero</td><td>Crear ventas y consultar sus propias facturas.</td></tr>
+<tr><td>Auditor</td><td>Consultar reportes y bitácoras; no modifica catálogos.</td></tr>
+<tr><td>Sin roles</td><td>Perfil, seguridad, apariencia y cierre de sesión, sin funciones de negocio.</td></tr>
+</tbody></table></div>
+<p>El nombre del rol no sustituye la comprobación de permisos efectivos. <code>REPORTES_LEER</code> permite consultar todas las facturas y métricas. Sin ese permiso, una consulta de factura exige propiedad de la venta.</p>
+<h3>Venta transaccional</h3>
+<ol><li>El navegador envía cliente, producto/cantidad y solicita cotización.</li><li>SQL valida cliente/productos activos, obtiene precios y stock, agrupa el detalle y calcula subtotal e IVA.</li><li>El navegador confirma productos, cantidades, cliente, total aceptado como cadena y UUID de idempotencia.</li><li>SQL serializa la clave por usuario, compara la huella canónica y ejecuta encabezado, detalle, stock, caja y auditoría en una transacción con <code>XACT_ABORT</code> y <code>TRY/CATCH</code>.</li><li>Misma clave y contenido devuelve la misma factura; contenido distinto produce <code>409 IDEMPOTENCY_CONFLICT</code>.</li><li>Ante una respuesta incierta, el borrador conserva la clave y consulta el resultado. No genera otra venta ni otra clave hasta resolverlo.</li></ol>
+<p>El comprobante usa las instantáneas históricas de cliente, cajero, moneda, impuesto, producto y precio. Consultar o imprimir no registra otra venta.</p>
+<h3>Datos, tiempo e importes</h3>
+<ul><li>Autoridad contable: <code>DECIMAL(19,2)</code> en SQL.</li><li>Transporte: cadenas con exactamente dos decimales; nunca <code>Number</code> como fuente contable.</li><li>IVA académico: <code>ROUND(subtotal * 0.12, 2)</code> una sola vez en el encabezado.</li><li>Fechas persistidas en UTC. Los filtros de día se convierten en el servidor a intervalos UTC correctos para la zona configurada.</li><li>Paginación en servidor: 10, 25 o 50 filas, 25 por defecto; orden estable con desempate por clave.</li></ul>
+<h3>Auditoría y pool</h3>
+<p>La identidad de aplicación proviene de la sesión. Cada SP protegido establece contexto de auditoría en la misma conexión que modifica datos y lo limpia incluso al fallar. Las pruebas deben alternar cuentas sobre un pool reutilizado para demostrar que no queda contexto residual.</p>
+<ul><li>Accesos: resultado, motivo interno, principal SQL e IP observada.</li><li>DML: triggers por conjuntos, una entrada por fila afectada; un rollback no deja auditoría DML de la transacción revertida.</li><li>DDL: trigger de base para cambios de esquema por el canal administrativo.</li><li>Nunca se registran contraseñas, hashes, salts, tokens, cookies ni cadenas de conexión.</li></ul>
+<h3>Disponibilidad y fallos</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Estado</th><th>Presentación/contrato</th>
+</tr></thead><tbody>
+<tr><td>Carga</td><td>Indicador contextual; no tabla vacía temporal.</td></tr>
+<tr><td>Sin registros</td><td>Mensaje válido y acción siguiente.</td></tr>
+<tr><td>Sin coincidencias</td><td>Conserva filtros y permite limpiarlos.</td></tr>
+<tr><td>Validación</td><td>Señala campos y conserva valores no sensibles.</td></tr>
+<tr><td>Conflicto</td><td><code>409</code>, solicita actualizar o explica idempotencia/stock.</td></tr>
+<tr><td>Sesión</td><td><code>401</code>, limpia datos sensibles y vuelve a acceso.</td></tr>
+<tr><td>Prohibición</td><td><code>403</code>, sin revelar datos.</td></tr>
+<tr><td>Servicio/SQL</td><td><code>503</code>, nunca se presenta como total cero o venta revertida confirmada.</td></tr>
+</tbody></table></div></section>
+<section class="document-section" data-source="physical-erd.md"><h2>ERD físico</h2>
+<p>Este modelo corresponde al esquema <code>dbo</code> declarado por los scripts de <code>database/</code>. El diagrama muestra columnas físicas, claves y relaciones declarativas; los campos de auditoría sin clave foránea se describen después del diagrama. <code>rowversion</code> se representa como <code>binary8</code> porque Mermaid no admite todos los tipos de SQL Server.</p>
+<pre data-language="mermaid"><code>erDiagram
+    Permiso {
+        int PermisoId PK
+        varchar60 Codigo UK
+        nvarchar120 Nombre
+        varchar40 Modulo
+        bit Activo
+        datetime2 CreadoUtc
+        datetime2 ActualizadoUtc
+        binary8 VersionFila
+    }
+    Rol {
+        int RolId PK
+        varchar60 Nombre UK
+        nvarchar250 Descripcion
+        bit EsAdministrador
+        bit Activo
+        datetime2 CreadoUtc
+        datetime2 ActualizadoUtc
+        binary8 VersionFila
+    }
+    Usuario {
+        int UsuarioId PK
+        varchar50 NombreUsuario UK
+        nvarchar120 NombreVisible
+        nvarchar254 CorreoRecuperacion
+        varbinary64 PasswordHash
+        varbinary32 PasswordSalt
+        bit DebeCambiarPassword
+        bit Activo
+        int VersionSeguridad
+        datetime2 CreadoUtc
+        datetime2 ActualizadoUtc
+        datetime2 UltimoCambioPasswordUtc
+        binary8 VersionFila
+    }
+    Usuario_Rol {
+        int UsuarioId PK,FK
+        int RolId PK,FK
+        datetime2 AsignadoUtc
+        int AsignadoPorUsuarioId FK
+    }
+    Rol_Permiso {
+        int RolId PK,FK
+        int PermisoId PK,FK
+        datetime2 AsignadoUtc
+        int AsignadoPorUsuarioId FK
+    }
+    Sesion {
+        bigint SesionId PK
+        varbinary64 SesionHash UK
+        int UsuarioId FK
+        int VersionSeguridad
+        smallint MinutosInactividad
+        datetime2 CreadaUtc
+        datetime2 UltimaActividadUtc
+        datetime2 ExpiraInactividadUtc
+        datetime2 ExpiraAbsolutaUtc
+        datetime2 RevocadaUtc
+        varchar45 DireccionIP
+        nvarchar300 AgenteUsuario
+        uniqueidentifier CorrelationId
+    }
+    TokenRecuperacion {
+        bigint TokenRecuperacionId PK
+        int UsuarioId FK
+        varbinary64 TokenHash UK
+        datetime2 CreadoUtc
+        datetime2 ExpiraUtc
+        datetime2 UsadoUtc
+        datetime2 RevocadoUtc
+        varchar45 DireccionIP
+        uniqueidentifier CorrelationId
+    }
+    PreferenciaUsuario {
+        int UsuarioId PK,FK
+        varchar10 Tema
+        datetime2 ActualizadoUtc
+        binary8 VersionFila
+    }
+    UnidadMedida {
+        varchar20 Codigo PK
+        nvarchar80 Nombre
+        bit Activo
+    }
+    ConfiguracionSistema {
+        tinyint ConfiguracionId PK
+        char3 MonedaCodigo
+        nvarchar64 ZonaHorariaIana
+        sysname ZonaHorariaSql
+        decimal TasaIVA
+        datetime2 ActualizadoUtc
+        binary8 VersionFila
+    }
+    Cliente {
+        int ClienteId PK
+        varchar30 Identificador UK
+        nvarchar120 Nombre
+        nvarchar254 Correo
+        nvarchar30 Telefono
+        bit Activo
+        datetime2 CreadoUtc
+        datetime2 ActualizadoUtc
+        binary8 VersionFila
+    }
+    Producto {
+        int ProductoId PK
+        varchar30 Codigo UK
+        nvarchar160 Descripcion
+        varchar20 Unidad FK
+        decimal Precio
+        int Stock
+        bit Activo
+        datetime2 CreadoUtc
+        datetime2 ActualizadoUtc
+        binary8 VersionFila
+    }
+    MovimientoInventario {
+        bigint MovimientoInventarioId PK
+        int ProductoId FK
+        int Variacion
+        int StockAnterior
+        int StockNuevo
+        nvarchar250 Motivo
+        int UsuarioId FK
+        datetime2 FechaUtc
+        uniqueidentifier CorrelationId
+    }
+    Factura {
+        bigint FacturaId PK
+        bigint Numero UK
+        varchar20 Estado
+        int ClienteId FK
+        varchar30 ClienteIdentificador
+        nvarchar120 ClienteNombre
+        int UsuarioId FK
+        nvarchar120 CajeroNombre
+        datetime2 FechaUtc
+        char3 Moneda
+        decimal TasaIVA
+        decimal Subtotal
+        decimal IVA
+        decimal Total
+        uniqueidentifier ClaveIdempotencia
+        varbinary32 HuellaContenido
+        uniqueidentifier CorrelationId
+    }
+    Detalle_Factura {
+        bigint DetalleFacturaId PK
+        bigint FacturaId FK
+        int ProductoId FK
+        varchar30 ProductoCodigo
+        nvarchar160 ProductoDescripcion
+        varchar20 Unidad
+        int Cantidad
+        decimal PrecioUnitario
+        decimal Importe
+    }
+    MovimientoCaja {
+        bigint MovimientoCajaId PK
+        bigint FacturaId FK,UK
+        varchar20 Tipo
+        decimal Importe
+        char3 Moneda
+        int UsuarioId FK
+        datetime2 FechaUtc
+    }
+    Bitacora_Acceso {
+        bigint BitacoraAccesoId PK
+        datetime2 FechaUtc
+        varchar254 NombreUsuarioIntentado
+        int UsuarioId FK
+        varchar30 Resultado
+        nvarchar250 MotivoInterno
+        varchar45 DireccionIP
+        nvarchar300 AgenteUsuario
+        nvarchar128 PrincipalSql
+        nvarchar128 HostName
+        nvarchar128 AppName
+        uniqueidentifier CorrelationId
+    }
+    Bitacora_Transacciones {
+        bigint BitacoraTransaccionId PK
+        datetime2 FechaUtc
+        sysname Tabla
+        varchar10 Operacion
+        nvarchar200 RegistroId
+        int UsuarioAplicacionId
+        varchar50 UsuarioAplicacion
+        nvarchar128 PrincipalSql
+        nvarchar128 HostName
+        nvarchar128 AppName
+        varchar45 DireccionIP
+        uniqueidentifier CorrelationId
+        nvarchar250 Motivo
+        nvarcharmax ValoresAnteriores
+        nvarcharmax ValoresNuevos
+    }
+    Bitacora_DDL {
+        bigint BitacoraDDLId PK
+        datetime2 FechaUtc
+        sysname TipoEvento
+        sysname TipoObjeto
+        sysname NombreObjeto
+        sysname Esquema
+        nvarcharmax Comando
+        nvarchar128 PrincipalSql
+        varchar50 UsuarioAplicacion
+        nvarchar128 HostName
+        nvarchar128 AppName
+        uniqueidentifier CorrelationId
+        xml DatosEvento
+    }
+    Bitacora_Incidente {
+        bigint BitacoraIncidenteId PK
+        datetime2 FechaUtc
+        varchar80 Operacion
+        int UsuarioId
+        uniqueidentifier CorrelationId
+        int NumeroError
+        nvarchar500 MensajeSanitizado
+        nvarchar128 PrincipalSql
+        nvarchar128 HostName
+        nvarchar128 AppName
+    }
+    SchemaMigration {
+        varchar100 MigrationId PK
+        nvarchar250 Descripcion
+        datetime2 AplicadaUtc
+        sysname AplicadaPor
+    }
+
+    Usuario ||--o{ Usuario_Rol : recibe
+    Rol ||--o{ Usuario_Rol : agrupa
+    Rol ||--o{ Rol_Permiso : concede
+    Permiso ||--o{ Rol_Permiso : integra
+    Usuario ||--o{ Sesion : abre
+    Usuario ||--o{ TokenRecuperacion : solicita
+    Usuario ||--o| PreferenciaUsuario : configura
+    UnidadMedida ||--o{ Producto : clasifica
+    Producto ||--o{ MovimientoInventario : registra
+    Usuario ||--o{ MovimientoInventario : ejecuta
+    Cliente ||--o{ Factura : identifica
+    Usuario ||--o{ Factura : procesa
+    Factura ||--|{ Detalle_Factura : contiene
+    Producto ||--o{ Detalle_Factura : referencia
+    Factura ||--|| MovimientoCaja : genera
+    Usuario ||--o{ MovimientoCaja : registra
+    Usuario o|--o{ Bitacora_Acceso : relaciona</code></pre>
+<h3>Relaciones y datos históricos</h3>
+<ul><li><code>Usuario_Rol</code> y <code>Rol_Permiso</code> tienen clave primaria compuesta. <code>AsignadoPorUsuarioId</code> es opcional y referencia <code>Usuario</code>; el diagrama omite esas dos líneas autorreferentes para conservar legibilidad.</li><li><code>PreferenciaUsuario</code> usa <code>UsuarioId</code> como PK y FK: una cuenta tiene cero o una fila; la lectura resuelve <code>sistema</code> cuando aún no existe.</li><li><code>Factura</code> conserva instantáneas de identificador/nombre del cliente y nombre del cajero. <code>Detalle_Factura</code> conserva código, descripción, unidad y precio. Las FK permiten trazabilidad, pero las impresiones históricas no vuelven a leer esos textos desde el catálogo actual.</li><li><code>UQ_Factura_Usuario_Clave (UsuarioId, ClaveIdempotencia)</code> impide duplicar una venta por cuenta. <code>HuellaContenido</code> distingue un reintento idéntico de una reutilización conflictiva.</li><li><code>UQ_DetalleFactura_Factura_Producto</code> limita una línea por producto y <code>UQ_MovimientoCaja_Factura</code> un movimiento de caja por factura.</li><li><code>Bitacora_Transacciones.UsuarioAplicacionId</code> y <code>Bitacora_Incidente.UsuarioId</code> son datos de evidencia, no FK. Esto evita que cambios de seguridad o mantenimiento del catálogo rompan el registro. <code>Bitacora_DDL</code> tampoco depende de tablas de negocio.</li><li><code>ConfiguracionSistema</code> es una fila única (<code>ConfiguracionId = 1</code>) con moneda, zonas horarias e IVA. <code>SeqNumeroFactura</code> asigna el número comercial; los huecos de secuencia tras rollback son válidos y no representan facturas perdidas.</li><li><code>SchemaMigration</code> registra la línea base/migraciones aplicadas por el canal administrativo; no participa en operaciones HTTP.</li></ul>
+<h3>Restricciones físicas relevantes</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Área</th><th>Regla de base de datos</th>
+</tr></thead><tbody>
+<tr><td>Usuario</td><td><code>NombreUsuario</code> ASCII permitido, 3–50; salt de 32 bytes; hash de 64 bytes; <code>VersionSeguridad &gt; 0</code>.</td></tr>
+<tr><td>Contraseña</td><td>Política validada por función: 12–128 caracteres, mayúscula, minúscula, número y símbolo.</td></tr>
+<tr><td>Sesión</td><td>hash único de 64 bytes; inactividad 5–1440 minutos; vencimiento por inactividad no supera el absoluto.</td></tr>
+<tr><td>Tema</td><td><code>claro</code>, <code>oscuro</code> o <code>sistema</code>.</td></tr>
+<tr><td>Cliente</td><td>identificador 1–30, nombre 2–120; identificador único.</td></tr>
+<tr><td>Producto</td><td>código 1–30, descripción 2–160, precio <code>0.01–999999.99</code>, stock <code>0–2147483647</code>; unidad referenciada.</td></tr>
+<tr><td>Inventario</td><td>variación entera distinta de cero, motivo 10–250, stock anterior/nuevo no negativo.</td></tr>
+<tr><td>Factura</td><td>solo estado <code>Confirmada</code>; dinero <code>DECIMAL(19,2)</code>; <code>Total = Subtotal + IVA</code>; huella de 32 bytes.</td></tr>
+<tr><td>Detalle</td><td>cantidad 1–9999; importe igual a cantidad por precio exacto.</td></tr>
+<tr><td>Caja</td><td>tipo único <code>INGRESO_VENTA</code>; importe positivo.</td></tr>
+<tr><td>Auditoría</td><td>operación DML <code>INSERT</code>, <code>UPDATE</code> o <code>DELETE</code>; imágenes anterior/nueva, si existen, son JSON válido.</td></tr>
+</tbody></table></div>
+<h3>Índices principales</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Índice</th><th>Finalidad</th>
+</tr></thead><tbody>
+<tr><td><code>IX_Sesion_Usuario_Vigencia</code></td><td>Resolver/revocar sesiones de una cuenta por vigencia.</td></tr>
+<tr><td><code>IX_TokenRecuperacion_Usuario_Vigencia</code></td><td>Resolver tokens activos y revocar los anteriores.</td></tr>
+<tr><td><code>IX_Producto_Descripcion</code></td><td>Búsqueda/paginación de productos con columnas de presentación incluidas.</td></tr>
+<tr><td><code>IX_Cliente_Nombre</code></td><td>Búsqueda/paginación de clientes con contacto/estado incluidos.</td></tr>
+<tr><td><code>IX_Factura_Fecha</code></td><td>Reportes cronológicos y totales por rango.</td></tr>
+<tr><td><code>IX_Factura_Usuario_Fecha</code></td><td>Facturas propias por usuario y fecha.</td></tr>
+<tr><td><code>IX_BitacoraAcceso_Fecha</code></td><td>Consulta de accesos por fecha.</td></tr>
+<tr><td><code>IX_BitacoraTransacciones_Fecha</code></td><td>Consulta de auditoría DML por fecha.</td></tr>
+<tr><td><code>IX_BitacoraDDL_Fecha</code></td><td>Consulta de auditoría DDL por fecha.</td></tr>
+</tbody></table></div>
+<p>Las restricciones e índices anteriores son diseño inspeccionado; su comportamiento se valida mediante PA/QC y permanece <strong>Pendiente</strong> hasta ejecutar la base real.</p></section>
+<section class="document-section" data-source="technical-decisions.md"><h2>Decisiones técnicas</h2>
+<p>Las decisiones siguientes son reversibles salvo las reglas funcionales impuestas por la especificación. “Aceptada” significa que guía esta implementación; no equivale a certificación de seguridad o producción.</p>
+<h3>DT01 — JavaScript y workspace pnpm</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>El repositorio usa JavaScript moderno <code>.js/.jsx</code>, ESM y un workspace pnpm con <code>apps/web</code> y <code>apps/api</code>. Las versiones se fijan exactamente y <code>pnpm-lock.yaml</code> es la única fuente de resolución. No se generan <code>package-lock.json</code> ni <code>yarn.lock</code>.</p>
+<h3>DT02 — SPA y API bajo un mismo origen</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>Vite se usa en desarrollo con proxy; en ejecución integrada Express sirve el frontend compilado. Esto permite cookie de mismo sitio, elimina CORS abierto y simplifica CSRF. Ambos servicios se enlazan a loopback, nunca a <code>0.0.0.0</code> por defecto.</p>
+<h3>DT03 — SQL Server como frontera de integridad</h3>
+<p><strong>Estado:</strong> aceptada y obligatoria.</p>
+<p>La API ejecuta procedimientos almacenados; las TVF se consumen dentro de procedimientos. La cuenta de aplicación no recibe DML directo, DDL, <code>db_owner</code> ni <code>sysadmin</code>. Instalación y migración pertenecen a una cuenta administrativa y nunca se ejecutan al arrancar el servicio.</p>
+<h3>DT04 — Sesión opaca, cookie y CSRF</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>La cookie contiene un token aleatorio opaco. SQL conserva solo <code>SHA2_512(token)</code>. En cada operación se validan usuario activo, revocación, inactividad de 30 minutos, duración absoluta de ocho horas y permisos actuales. El token CSRF se deriva con HMAC-SHA-256 y se compara en tiempo constante; los métodos de escritura también validan el origen.</p>
+<p>No se almacenan credenciales ni sesiones en <code>localStorage</code>. Al finalizar una sesión se eliminan token CSRF, datos privados y borradores sensibles en memoria.</p>
+<h3>DT05 — Perfil académico de contraseñas SHA2_512</h3>
+<p><strong>Estado:</strong> aceptada por requisito académico, con riesgo explícito.</p>
+<p>SQL genera un salt criptográfico individual y calcula <code>HASHBYTES('SHA2_512', salt + representación inequívoca de la contraseña)</code>. La contraseña conserva exactamente los 12–128 caracteres recibidos: no se recorta, normaliza ni trunca. La contraseña en claro atraviesa navegador y API para llegar al parámetro SQL, pero no se persiste, registra ni devuelve; hash y salt permanecen en tablas SQL y tampoco se proyectan por la API ni se incluyen en auditoría.</p>
+<p>SHA2_512 es rápido y <strong>no es un verificador de contraseña con factor de trabajo</strong>. Esta decisión satisface la rúbrica académica, pero no convierte al sistema en “listo para producción”. Antes de una publicación real se requiere una migración versionada a Argon2id, scrypt, bcrypt o PBKDF2 con parámetros vigentes, rehash progresivo, pruebas de compatibilidad y plan de reversión.</p>
+<h3>DT06 — Recuperación de un solo uso</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>La API genera un token aleatorio, SQL guarda su digest, su vigencia es de 15 minutos y el consumo es atómico. La respuesta pública siempre es genérica. El token solo se entrega mediante un buzón local privado fuera de <code>apps/web</code>/<code>dist</code>. Cambiar o restablecer contraseña revoca sesiones y tokens anteriores.</p>
+<h3>DT07 — Parámetros tipados, TVP y permisos mínimos</h3>
+<p><strong>Estado:</strong> aceptada y obligatoria.</p>
+<p><code>mssql</code> declara explícitamente longitud, precisión y tipo de cada parámetro. El detalle de una venta viaja como <code>dbo.TVP_DetalleFactura</code>; el navegador nunca genera SQL.</p>
+<p>La cuenta API necesita, además de <code>EXECUTE</code> sobre los SP autorizados, permisos sobre el tipo concreto:</p>
+<pre data-language="sql"><code>GRANT EXECUTE ON TYPE::dbo.TVP_DetalleFactura TO SecureFinanceApiExecutor;
+GRANT REFERENCES ON TYPE::dbo.TVP_DetalleFactura TO SecureFinanceApiExecutor;</code></pre>
+<p>No se concede <code>EXECUTE</code> o <code>REFERENCES</code> indiscriminado a todos los tipos o a toda la base. <code>SecureFinanceApiExecutor</code> es el rol de base; el login/usuario concreto se aprovisiona por variables SQLCMD privadas y se agrega solo a ese rol.</p>
+<h3>DT08 — Importes exactos</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>SQL usa <code>DECIMAL(19,2)</code>. El HTTP usa cadenas decimales y la API valida formato y rango. Tedious materializa <code>DECIMAL/NUMERIC</code> como <code>Number</code>, por lo que los SP de consulta proyectan importes públicos como texto con dos decimales. La interfaz puede usar aritmética decimal explícita para presentación, pero la cotización y confirmación autoritativas siempre proceden de SQL.</p>
+<p>Casos de control obligatorios:</p>
+<ul><li><code>100.00</code> → IVA <code>12.00</code> → total <code>112.00</code>.</li><li><code>0.05</code> → IVA <code>0.01</code> → total <code>0.06</code>.</li></ul>
+<h3>DT09 — Idempotencia de venta</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>La clave es un UUID ligado al usuario y a una huella canónica de cliente/productos/cantidades/total aceptado. Existe unicidad por usuario y clave. Solicitudes concurrentes de la misma clave se serializan. Una clave repetida con la misma huella recupera la factura; con otra huella devuelve conflicto.</p>
+<p>Un error de transporte o <code>5xx</code> no prueba rollback. La API responde “resultado desconocido”, conserva la clave y consulta <code>sp_ConsultarResultadoVenta</code> hasta obtener un estado definitivo.</p>
+<h3>DT10 — Transacción de venta y fallos de prueba</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>Factura, detalle, descuento de stock, movimiento de caja y auditoría DML comparten una transacción con <code>SET XACT_ABORT ON</code>, <code>TRY/CATCH</code>, <code>COMMIT</code> y <code>ROLLBACK</code>. El stock se bloquea/actualiza en orden estable. El código intenta registrar un incidente técnico después del rollback en una tabla separada; PA06 debe demostrar ambos efectos contra SQL Server.</p>
+<p><code>database/tests/04_sale-rollback-fault.sql</code> implementa un punto de fallo posterior al encabezado sin añadir ramas de prueba al SP: crea un trigger temporal y todos los fixtures dentro de una transacción externa; el <code>ROLLBACK</code> del procedimiento elimina ambos. El script exige conexión administrativa y nombre <code>_Test</code>, comprueba factura/detalle/caja/stock/auditoría/incidente y limpia el incidente técnico al terminar. Es evidencia automatizable de un punto, no autorización para marcar PA06 sin el acta completa. <code>03_save-transaction.sql</code> conserva únicamente su propósito didáctico.</p>
+<h3>DT11 — Contexto de auditoría por conexión</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>La API pasa hash de sesión, IP observada y correlación. SQL resuelve el actor desde la sesión y establece <code>SESSION_CONTEXT</code> en la misma conexión de la operación. El contexto se limpia antes de devolver la conexión al pool. El navegador no selecciona <code>UsuarioId</code>.</p>
+<h3>DT12 — Control de concurrencia optimista</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>Productos, clientes, usuarios y roles exponen una versión <code>rowversion</code>. Toda edición envía la versión leída; una versión obsoleta produce <code>409 STALE_VERSION</code>. El stock solo cambia mediante ajuste transaccional con motivo de 10–250 caracteres.</p>
+<h3>DT13 — Temas por navegador y por cuenta</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>La preferencia anónima pertenece al navegador; la autenticada se guarda en SQL. El cambio se aplica antes de persistir, se serializa y una respuesta antigua no puede revertir el último valor. Al salir se restaura la preferencia anónima. Una lectura de sincronización fallida conserva el valor actual y no sobrescribe la cuenta.</p>
+<h3>DT14 — Errores públicos y correlación</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>La API distingue <code>400</code>, <code>401</code>, <code>403</code>, <code>404</code>, <code>409</code>, <code>429</code> y <code>503</code>. Cada error usa mensaje en español, código estable y <code>correlationId</code>; nunca contiene texto SQL, stack ni secretos. Los registros internos conservan solo los datos técnicos necesarios y permiten seguir la misma correlación.</p>
+<h3>DT15 — SQL Server Express y continuidad</h3>
+<p><strong>Estado:</strong> aceptada para el entorno local.</p>
+<p>SQL Server Express no incluye SQL Server Agent. La política requiere programar la copia diaria con Task Scheduler y PowerShell/sqlcmd, conservar al menos siete copias protegidas y una en otro medio. El repositorio aporta scripts SQL y una guía, no una tarea ya instalada. Restaurar para pruebas usa primero otra base y jamás sobrescribe automáticamente la existente.</p>
+<h3>DT16 — Dependencias y operación sin Internet</h3>
+<p><strong>Estado:</strong> aceptada.</p>
+<p>Iconos, estilos y fuentes usados por la aplicación se sirven localmente; no hay CDN, analítica ni API externa declarada en el código. El repositorio incluye Playwright y suites pública/privada que usan el canal <code>msedge</code> instalado en el equipo, no un navegador empaquetado. Tras obtener las dependencias, el runtime <strong>debe</strong> funcionar sin Internet con API y SQL Server activos, pero ese objetivo continúa Pendiente hasta ejecutar PA26/PA32 en una copia limpia y desconectada.</p></section>
+<section class="document-section" data-source="api-contracts.md"><h2>Contratos de la API HTTP</h2>
+<h3>Convenciones generales</h3>
+<ul><li>Base relativa: <code>/api</code>; mismo origen que la SPA en ejecución integrada.</li><li>Medios: solicitudes y respuestas JSON UTF-8, salvo <code>204 No Content</code>.</li><li>El analizador acepta JSON estricto y limita el cuerpo a 256 KiB. Los esquemas rechazan propiedades no declaradas.</li><li>La cookie de sesión es opaca, <code>HttpOnly</code>, <code>SameSite=Strict</code>, <code>Path=/</code> y <code>Secure</code> cuando se configura HTTPS. El cliente usa <code>credentials: include</code>.</li><li>Toda respuesta incluye <code>X-Correlation-Id</code>. Se conserva un UUID v4 válido enviado por el cliente; en otro caso la API genera uno.</li><li>Cada escritura autenticada exige <code>X-CSRF-Token</code>, obtenido en el acceso o en <code>GET /api/auth/session</code>. Los métodos no seguros también se limitan a los orígenes configurados.</li><li>Fechas de filtro usan <code>YYYY-MM-DD</code>; instantes de respuesta usan ISO 8601 UTC. Los importes se transportan como cadenas con exactamente dos decimales.</li><li><code>page</code> empieza en 1 y <code>pageSize</code> solo admite <code>10</code>, <code>25</code> o <code>50</code>; el valor predeterminado es 25.</li></ul>
+<h4>Envolventes</h4>
+<p>Éxito individual:</p>
+<pre data-language="json"><code>{
+  &quot;data&quot;: { &quot;id&quot;: 42 }
+}</code></pre>
+<p>Listado:</p>
+<pre data-language="json"><code>{
+  &quot;data&quot;: [],
+  &quot;meta&quot;: {
+    &quot;page&quot;: 1,
+    &quot;pageSize&quot;: 25,
+    &quot;total&quot;: 0,
+    &quot;totalPages&quot;: 0
+  }
+}</code></pre>
+<p>Error público:</p>
+<pre data-language="json"><code>{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;VALIDATION_ERROR&quot;,
+    &quot;message&quot;: &quot;Revise los datos enviados.&quot;,
+    &quot;fields&quot;: { &quot;lines.0.quantity&quot;: &quot;Valor no válido&quot; }
+  },
+  &quot;correlationId&quot;: &quot;00000000-0000-4000-8000-000000000000&quot;
+}</code></pre>
+<p><code>fields</code> solo aparece en errores de validación que pueden asociarse con campos. No se devuelven mensajes SQL, trazas, cookies, hashes ni tokens privados.</p>
+<h4>Autorización</h4>
+<div class="table-scroll"><table><thead><tr>
+<th>Código</th><th>Alcance</th>
+</tr></thead><tbody>
+<tr><td><code>VENTAS_CREAR</code></td><td>Cotizar/procesar ventas, consultar facturas propias y catálogos activos.</td></tr>
+<tr><td><code>REPORTES_LEER</code></td><td>Reporte, métricas y todas las facturas.</td></tr>
+<tr><td><code>PRODUCTOS_GESTIONAR</code></td><td>Crear/editar productos y ajustar inventario.</td></tr>
+<tr><td><code>CLIENTES_GESTIONAR</code></td><td>Crear/editar clientes.</td></tr>
+<tr><td><code>AUDITORIA_LEER</code></td><td>Accesos, DML y DDL.</td></tr>
+<tr><td><code>USUARIOS_GESTIONAR</code></td><td>Usuarios, roles asignados y credencial temporal.</td></tr>
+<tr><td><code>ROLES_GESTIONAR</code></td><td>Roles y permisos.</td></tr>
+</tbody></table></div>
+<p>La UI usa esta matriz para navegar, pero cada endpoint y cada SP vuelven a comprobarla. Una sesión marcada <code>mustChangePassword</code> solo puede consultar su sesión, cambiar contraseña y cerrar sesión.</p>
+<h3>Autenticación y sesión</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Acceso / protección</th><th>Entrada</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>POST /api/auth/login</code></td><td>Público; límite 60/15 min en HTTP más regla SQL</td><td><code>{username, password}</code>; usuario ASCII 3–50, contraseña 1–128</td><td><code>200</code>; usuario, permisos, roles, vencimientos, <code>csrfToken</code> y configuración regional; fija cookie</td><td><code>sp_AutenticarUsuario</code></td></tr>
+<tr><td><code>GET /api/auth/session</code></td><td>Sesión; no renueva inactividad; permite cambio obligatorio</td><td>—</td><td><code>200</code>; misma forma de sesión y nuevo <code>csrfToken</code></td><td><code>sp_ValidarSesionApi</code></td></tr>
+<tr><td><code>POST /api/auth/logout</code></td><td>Sesión + CSRF; permite cambio obligatorio</td><td>cuerpo omitido</td><td><code>204</code>; revoca sesión y borra cookie aun si falla el cierre SQL</td><td><code>sp_CerrarSesion</code></td></tr>
+<tr><td><code>POST /api/auth/recover</code></td><td>Público; límite HTTP</td><td><code>{identity}</code> de 3–254</td><td><code>202</code>; mensaje idéntico exista o no la cuenta</td><td><code>sp_SolicitarRecuperacion</code></td></tr>
+<tr><td><code>POST /api/auth/reset</code></td><td>Público; límite HTTP</td><td><code>{token, newPassword}</code>; token 32–256; política 12–128</td><td><code>200</code>; mensaje de restablecimiento</td><td><code>sp_RestablecerPassword</code></td></tr>
+</tbody></table></div>
+<p>El enlace de recuperación se escribe únicamente en el buzón privado configurado, fuera de <code>dist</code>; el token en claro no forma parte de la respuesta HTTP.</p>
+<h3>Cuenta y preferencias</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Acceso / protección</th><th>Entrada</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>GET /api/me</code></td><td>Sesión</td><td>—</td><td><code>200</code>; perfil, <code>permissions[]</code> y <code>roles[]</code></td><td><code>sp_ConsultarPerfil</code></td></tr>
+<tr><td><code>GET /api/me/preferences</code></td><td>Sesión; no renueva inactividad</td><td>—</td><td><code>200</code>; <code>{theme}</code></td><td><code>sp_ObtenerPreferenciasUsuario</code></td></tr>
+<tr><td><code>PUT /api/me/preferences</code></td><td>Sesión + CSRF</td><td><code>{theme}</code>: <code>claro</code>, <code>oscuro</code> o <code>sistema</code></td><td><code>200</code>; preferencia persistida</td><td><code>sp_GuardarPreferenciasUsuario</code></td></tr>
+<tr><td><code>PUT /api/me/password</code></td><td>Sesión + CSRF; permite cambio obligatorio</td><td><code>{currentPassword, newPassword}</code></td><td><code>200</code>; revoca sesiones/tokens y borra cookie</td><td><code>sp_CambiarPassword</code></td></tr>
+</tbody></table></div>
+<p>La contraseña nueva conserva los caracteres recibidos; no se recorta. Debe tener 12–128 caracteres, mayúscula, minúscula, número y símbolo.</p>
+<h3>Inicio</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Acceso</th><th>Entrada</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>GET /api/dashboard</code></td><td>Sesión</td><td>—</td><td><code>200</code>; <code>summary</code>, <code>shortcuts[]</code>, <code>refreshedAt</code></td><td><code>sp_ObtenerResumenInicio</code></td></tr>
+</tbody></table></div>
+<p>El resumen global solo debe contener datos cuando el actor posee <code>REPORTES_LEER</code>; los accesos directos proceden de permisos efectivos.</p>
+<h3>Productos e inventario</h3>
+<p>Parámetros comunes de lista: <code>page</code>, <code>pageSize</code>, <code>search</code> (≤160), <code>status=all|active|inactive</code>, <code>sort=code|description|price|stock|updatedAt</code>, <code>direction=asc|desc</code>.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Permiso / protección</th><th>Entrada</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>GET /api/products</code></td><td><code>VENTAS_CREAR</code> o <code>PRODUCTOS_GESTIONAR</code></td><td>consulta común</td><td><code>200</code> listado paginado</td><td><code>sp_ListarProductos</code></td></tr>
+<tr><td><code>GET /api/products/options</code></td><td>igual</td><td>—</td><td><code>200</code> unidades activas</td><td><code>sp_ListarUnidadesMedida</code></td></tr>
+<tr><td><code>POST /api/products</code></td><td><code>PRODUCTOS_GESTIONAR</code> + CSRF</td><td><code>{code, description, unit, price}</code></td><td><code>201</code> producto; stock inicial 0</td><td><code>sp_CrearProducto</code></td></tr>
+<tr><td><code>PATCH /api/products/:id</code></td><td><code>PRODUCTOS_GESTIONAR</code> + CSRF</td><td>subconjunto de <code>{code, description, unit, price, active}</code> y <code>version</code> obligatoria</td><td><code>200</code> producto actualizado</td><td><code>sp_ActualizarProducto</code></td></tr>
+<tr><td><code>POST /api/products/:id/inventory</code></td><td><code>PRODUCTOS_GESTIONAR</code> + CSRF</td><td><code>{delta, reason, version}</code>; entero no cero, motivo 10–250, <code>version=0x</code> + 16 hex</td><td><code>200</code> stock/versión nuevos</td><td><code>sp_AjustarInventario</code></td></tr>
+</tbody></table></div>
+<p>Límites autoritativos: código 1–30, descripción 2–160, precio <code>0.01–999999.99</code>, unidad de catálogo y stock no negativo. Una versión obsoleta devuelve <code>409 STALE_VERSION</code>.</p>
+<h3>Clientes</h3>
+<p>Lista: <code>page</code>, <code>pageSize</code>, <code>search</code> (≤160), <code>status=all|active|inactive</code>, <code>sort=identifier|name|email|updatedAt</code>, <code>direction=asc|desc</code>.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Permiso / protección</th><th>Entrada</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>GET /api/customers</code></td><td><code>VENTAS_CREAR</code> o <code>CLIENTES_GESTIONAR</code></td><td>consulta de lista</td><td><code>200</code> listado paginado</td><td><code>sp_ListarClientes</code></td></tr>
+<tr><td><code>POST /api/customers</code></td><td><code>CLIENTES_GESTIONAR</code> + CSRF</td><td><code>{identifier, name, email?, phone?}</code></td><td><code>201</code> cliente</td><td><code>sp_CrearCliente</code></td></tr>
+<tr><td><code>PATCH /api/customers/:id</code></td><td><code>CLIENTES_GESTIONAR</code> + CSRF</td><td>subconjunto de <code>{identifier, name, email, phone, active}</code> y <code>version</code></td><td><code>200</code> cliente actualizado</td><td><code>sp_ActualizarCliente</code></td></tr>
+</tbody></table></div>
+<p><code>identifier</code> admite 1–30, <code>name</code> 2–120, correo hasta 254 y teléfono hasta 30. Cadena vacía o <code>null</code> elimina los contactos opcionales; no borra facturas históricas.</p>
+<h3>Ventas y comprobantes</h3>
+<p>Una línea siempre tiene <code>{productId: entero positivo, quantity: 1..9999}</code>. Debe haber 1–100 productos distintos; no se aceptan precios enviados por el cliente.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Permiso / protección</th><th>Entrada</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>POST /api/sales/quote</code></td><td><code>VENTAS_CREAR</code> + CSRF</td><td><code>{customerId, lines[]}</code></td><td><code>200</code>; líneas valoradas y totales SQL</td><td><code>sp_CotizarVenta</code></td></tr>
+<tr><td><code>POST /api/sales</code></td><td><code>VENTAS_CREAR</code> + CSRF</td><td><code>{customerId, lines[], acceptedTotal, idempotencyKey}</code></td><td><code>201</code> nueva; <code>200</code> reintento idéntico; factura resumida</td><td><code>sp_ProcesarVentaTransaccional</code></td></tr>
+<tr><td><code>GET /api/sales</code></td><td><code>VENTAS_CREAR</code> o <code>REPORTES_LEER</code></td><td>lista + <code>from?</code>, <code>to?</code>, `scope=mine</td><td>all<code>, </code>sort=date</td><td>number</td><td>customer</td><td>total`</td><td><code>200</code> facturas autorizadas</td><td><code>sp_ConsultarVentasPropias</code></td></tr>
+<tr><td><code>GET /api/sales/result/:key</code></td><td><code>VENTAS_CREAR</code></td><td>UUID de la clave</td><td><code>200</code> si resuelta; <code>202</code> <code>{status:&quot;pending&quot;, idempotencyKey}</code> si aún no aparece</td><td><code>sp_ConsultarResultadoVenta</code></td></tr>
+<tr><td><code>GET /api/sales/:id</code></td><td><code>VENTAS_CREAR</code> o <code>REPORTES_LEER</code></td><td>id positivo</td><td><code>200</code>; encabezado, <code>lines[]</code>, <code>cashMovement</code></td><td><code>sp_ConsultarFactura</code></td></tr>
+</tbody></table></div>
+<p><code>acceptedTotal</code> usa cadena decimal exacta. Si ocurre un fallo técnico después de enviar la venta, <code>POST /api/sales</code> devuelve <code>503 SALE_RESULT_UNKNOWN</code>: el cliente conserva la misma clave y usa el endpoint <code>result</code>; no crea otra clave mientras el resultado sea incierto. Una clave ya usada con contenido diferente devuelve <code>409 IDEMPOTENCY_CONFLICT</code>.</p>
+<p>Un actor con <code>VENTAS_CREAR</code> solo puede consultar sus facturas. <code>scope=all</code> y acceso a facturas ajenas requieren <code>REPORTES_LEER</code>, incluso si el navegador altera la consulta.</p>
+<h3>Reportes y auditoría</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Permiso</th><th>Entrada</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>GET /api/reports/sales</code></td><td><code>REPORTES_LEER</code></td><td><code>from</code>, <code>to</code>, paginación, búsqueda, `sort=date</td><td>number</td><td>customer</td><td>cashier</td><td>total`, dirección</td><td><code>200</code>; listado, <code>meta.totals</code>, <code>meta.range</code></td><td><code>sp_ObtenerHistoricoVentas</code></td></tr>
+<tr><td><code>GET /api/audit/access</code></td><td><code>AUDITORIA_LEER</code></td><td>paginación, búsqueda, fechas opcionales, orden</td><td><code>200</code> bitácora de acceso</td><td><code>sp_ConsultarBitacoraAcceso</code></td></tr>
+<tr><td><code>GET /api/audit/dml</code></td><td><code>AUDITORIA_LEER</code></td><td>igual</td><td><code>200</code> cambios DML</td><td><code>sp_ConsultarAuditoriaDML</code></td></tr>
+<tr><td><code>GET /api/audit/ddl</code></td><td><code>AUDITORIA_LEER</code></td><td>igual</td><td><code>200</code> cambios de esquema</td><td><code>sp_ConsultarAuditoriaDDL</code></td></tr>
+</tbody></table></div>
+<p>El rango de reporte contiene entre 1 y 366 días inclusivos (<code>to - from</code> de 0 a 365). Los totales corresponden al filtro completo, no solo a la página. Las categorías de auditoría son cerradas; cualquier otra categoría falla con <code>400</code>.</p>
+<h3>Usuarios, roles y permisos</h3>
+<p>Las listas aceptan paginación, búsqueda, <code>sort=name|username|status|updatedAt</code> y dirección. Las mutaciones requieren CSRF y <code>version</code> en actualizaciones.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Permiso</th><th>Entrada</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>GET /api/users</code></td><td><code>USUARIOS_GESTIONAR</code></td><td>consulta de lista</td><td><code>200</code> usuarios y roles</td><td><code>sp_ListarUsuarios</code></td></tr>
+<tr><td><code>POST /api/users</code></td><td><code>USUARIOS_GESTIONAR</code></td><td><code>{username, displayName, email?, roleIds[]}</code></td><td><code>201</code>; usuario y contraseña temporal mostrada una vez</td><td><code>sp_CrearUsuario</code></td></tr>
+<tr><td><code>PATCH /api/users/:id</code></td><td><code>USUARIOS_GESTIONAR</code></td><td>subconjunto de <code>{displayName, email, active, roleIds}</code> + <code>version</code></td><td><code>200</code>; usuario; revoca sesiones si cambia seguridad</td><td><code>sp_ActualizarUsuario</code></td></tr>
+<tr><td><code>POST /api/users/:id/reset-password</code></td><td><code>USUARIOS_GESTIONAR</code></td><td><code>{}</code> exacto</td><td><code>200</code>; contraseña temporal mostrada una vez</td><td><code>sp_GenerarPasswordTemporal</code></td></tr>
+<tr><td><code>GET /api/roles</code></td><td><code>ROLES_GESTIONAR</code></td><td>consulta de lista</td><td><code>200</code> roles y permisos</td><td><code>sp_ListarRoles</code></td></tr>
+<tr><td><code>POST /api/roles</code></td><td><code>ROLES_GESTIONAR</code></td><td><code>{name, description?, permissions[]}</code></td><td><code>201</code> rol</td><td><code>sp_CrearRol</code></td></tr>
+<tr><td><code>PATCH /api/roles/:id</code></td><td><code>ROLES_GESTIONAR</code></td><td>subconjunto de <code>{name, description, active, permissions}</code> + <code>version</code></td><td><code>200</code>; revoca sesiones afectadas al cambiar permisos</td><td><code>sp_ActualizarRol</code></td></tr>
+<tr><td><code>GET /api/permissions</code></td><td><code>ROLES_GESTIONAR</code></td><td>—</td><td><code>200</code> catálogo activo</td><td><code>sp_ListarPermisos</code></td></tr>
+</tbody></table></div>
+<p><code>username</code> es ASCII 3–50; <code>displayName</code> 2–120; <code>roleIds</code> admite hasta 30 IDs. El nombre de rol mide 3–60 y la descripción HTTP hasta 200. La API genera la credencial temporal, la envía como parámetro tipado y solo la muestra en esa respuesta; debe entregarse por canal privado.</p>
+<h3>Estado de servicio</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Método y ruta</th><th>Acceso</th><th>Éxito</th><th>Procedimiento</th>
+</tr></thead><tbody>
+<tr><td><code>GET /api/health</code></td><td>Público local</td><td><code>200</code>; <code>{status, database, checkedAt}</code></td><td><code>sp_VerificarEstado</code></td></tr>
+</tbody></table></div>
+<p>Este endpoint demuestra conectividad inmediata, no salud integral ni cumplimiento de QC.</p>
+<h3>Estados y códigos de error</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>HTTP</th><th>Código público frecuente</th><th>Uso</th>
+</tr></thead><tbody>
+<tr><td>400</td><td><code>INVALID_JSON</code>, <code>VALIDATION_ERROR</code>, <code>INVALID_CREDENTIALS</code>, <code>RESET_INVALID</code></td><td>JSON/esquema/regla inválida; credenciales y recuperación no revelan detalles internos.</td></tr>
+<tr><td>401</td><td><code>SESSION_REQUIRED</code>, <code>SESSION_INVALID</code></td><td>Sin cookie, sesión cerrada, vencida o revocada; la API borra la cookie.</td></tr>
+<tr><td>403</td><td><code>CSRF_INVALID</code>, <code>ORIGIN_INVALID</code>, <code>FORBIDDEN</code>, <code>PASSWORD_CHANGE_REQUIRED</code></td><td>Origen/CSRF/permiso o restricción por cambio inicial.</td></tr>
+<tr><td>404</td><td><code>NOT_FOUND</code>, <code>ROUTE_NOT_FOUND</code></td><td>Recurso o ruta inexistente.</td></tr>
+<tr><td>409</td><td><code>CONFLICT</code>, <code>STALE_VERSION</code>, <code>IDEMPOTENCY_CONFLICT</code>, <code>INSUFFICIENT_STOCK</code></td><td>Conflicto de negocio o concurrencia.</td></tr>
+<tr><td>429</td><td><code>RATE_LIMITED</code></td><td>Demasiados intentos o solicitudes.</td></tr>
+<tr><td>503</td><td><code>DATABASE_UNAVAILABLE</code>, <code>SALE_RESULT_UNKNOWN</code></td><td>Base no disponible o resultado de venta aún no determinable.</td></tr>
+<tr><td>500</td><td><code>INTERNAL_ERROR</code></td><td>Error no clasificado; mensaje sanitizado.</td></tr>
+</tbody></table></div>
+<p>Los números SQL <code>51001–51012</code> se convierten a estos códigos. Los estados descritos son contratos de diseño inspeccionados; sus pruebas PA permanecen <strong>Pendiente</strong> hasta ejecución real.</p></section>
+<section class="document-section" data-source="stored-procedures.md"><h2>Catálogo SQL</h2>
+<h3>Instalación y convenciones</h3>
+<p><code>database/install.sql</code> es el punto de entrada SQLCMD para <strong>objetos de base</strong>. Ejecuta, en orden, base/configuración, esquema, funciones, seguridad, catálogos, ventas/reportes, auditoría y permisos. <code>$(DatabaseName)</code> debe ser un identificador simple autorizado. No crea por sí solo el login SQL ni la cuenta bootstrap.</p>
+<p>El punto de entrada recomendado para preparar un entorno local completo es <code>scripts/Install-Database.ps1</code>. Después de <code>install.sql</code>, ejecuta <code>provision-api-login.sql</code>, <code>provision-bootstrap-admin.sql</code> y, si se solicita para una base <code>_Test</code>, <code>seed-demo.sql</code>; finalmente genera la configuración local y la credencial inicial privada. La secuencia y los requisitos se detallan en <a href="README.md#instalación-local-reproducible">README de documentación</a>.</p>
+<p>Los scripts pertenecen al canal administrativo; la API no instala, migra ni siembra objetos al arrancar. Reejecutar la línea base crea objetos ausentes y recompila código con <code>CREATE OR ALTER</code>, pero no constituye por sí mismo una migración completa de tablas preexistentes.</p>
+<h4>Inventario de la línea base</h4>
+<div class="table-scroll"><table><thead><tr>
+<th>Clase</th><th>Declarados</th><th>Expuestos a la cuenta API</th>
+</tr></thead><tbody>
+<tr><td>Procedimientos</td><td>41</td><td>36 mediante <code>GRANT EXECUTE</code> individual</td></tr>
+<tr><td>Funciones</td><td>6</td><td>0 directas; se consumen dentro de SP</td></tr>
+<tr><td>Tipos de tabla</td><td>4</td><td>3 (<code>TVP_DetalleFactura</code>, <code>TVP_ListaEnteros</code>, <code>TVP_CodigosPermiso</code>)</td></tr>
+<tr><td>Triggers</td><td>11</td><td>0 directos; 10 DML y 1 DDL de base</td></tr>
+</tbody></table></div>
+<p>Los cinco SP internos sin concesión a <code>SecureFinanceApiExecutor</code> son <code>sp_LimpiarContextoAuditoria</code>, <code>sp_RegistrarAcceso</code>, <code>sp_ResolverSesion</code>, <code>sp_ObtenerPermisosUsuario</code> y <code>sp_ValidarTokenRecuperacion</code>.</p>
+<p>Abreviaturas usadas en las tablas:</p>
+<ul><li><strong>S</strong>: <code>@SesionHash varbinary(64)</code>, <code>@DireccionIP varchar(45)=NULL</code>, <code>@CorrelationId uniqueidentifier=NULL</code>.</li><li><strong>P</strong>: <code>@Pagina int=1</code>, <code>@TamanoPagina tinyint=25</code>, <code>@Busqueda nvarchar(160)=NULL</code>, más orden/dirección del módulo.</li><li><strong>Lista</strong>: primer recordset de filas; segundo recordset <code>{page,pageSize,total,totalPages}</code>.</li><li>Todos los procedimientos protegidos resuelven otra vez la sesión en SQL. Los permisos indicados son mínimos funcionales, no sustituyen los <code>GRANT</code> de la cuenta API.</li><li>Los procedimientos de escritura usan parámetros tipados y devuelven errores <code>51001–51012</code> para que la API los transforme en errores públicos.</li></ul>
+<h3>Tipos definidos por el usuario</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Tipo</th><th>Columnas</th><th>Uso</th>
+</tr></thead><tbody>
+<tr><td><code>dbo.TVP_DetalleFactura</code></td><td><code>ProductoId int PK</code>, <code>Cantidad int CHECK 1..9999</code></td><td>Cotización y venta; una fila por producto, máximo funcional 100.</td></tr>
+<tr><td><code>dbo.TVP_IdEntero</code></td><td><code>Id int PK</code></td><td>Lista genérica de IDs; reservado por el esquema.</td></tr>
+<tr><td><code>dbo.TVP_ListaEnteros</code></td><td><code>Id int PK</code></td><td>Roles asignados a un usuario.</td></tr>
+<tr><td><code>dbo.TVP_CodigosPermiso</code></td><td><code>Codigo varchar(50) PK</code></td><td>Permisos asignados a un rol.</td></tr>
+</tbody></table></div>
+<p>La API necesita <code>EXECUTE</code> y <code>REFERENCES</code> sobre cada tipo que envía. El rol real de base es <code>SecureFinanceApiExecutor</code>; para ventas, el requisito explícito es:</p>
+<pre data-language="sql"><code>GRANT EXECUTE ON TYPE::dbo.TVP_DetalleFactura TO SecureFinanceApiExecutor;
+GRANT REFERENCES ON TYPE::dbo.TVP_DetalleFactura TO SecureFinanceApiExecutor;</code></pre>
+<p><code>07_permissions.sql</code> aplica ambas concesiones también a <code>TVP_ListaEnteros</code> y <code>TVP_CodigosPermiso</code>, porque la API los materializa para usuarios/roles. No se concede acceso genérico a todos los tipos.</p>
+<h3>Funciones</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Función</th><th>Parámetros / retorno</th><th>Responsabilidad</th>
+</tr></thead><tbody>
+<tr><td><code>fn_CalcularSubtotal</code></td><td><code>(@Cantidad int, @Precio decimal(19,2)) → decimal(19,2)</code></td><td>Multiplica y redondea a dos decimales; usada por cotización/venta.</td></tr>
+<tr><td><code>fn_CalcularIVA</code></td><td><code>(@Subtotal decimal(19,2)) → decimal(19,2)</code></td><td>Lee <code>ConfiguracionSistema.TasaIVA</code> y redondea una vez el IVA de encabezado.</td></tr>
+<tr><td><code>fn_ContrasenaCumplePolitica</code></td><td><code>(@Contrasena nvarchar(128)) → bit</code></td><td>Exige 12–128, mayúscula, minúscula, número y símbolo sin recorte.</td></tr>
+<tr><td><code>fn_TienePermiso</code></td><td><code>(@UsuarioId int, @Codigo varchar(60)) → bit</code></td><td>Resuelve permisos mediante roles/permisos activos.</td></tr>
+<tr><td><code>fn_ObtenerHistoricoVentas</code></td><td><code>(@FechaDesdeUtc datetime2(3), @FechaHastaExclusivaUtc datetime2(3)) → tabla</code></td><td>Solo facturas <code>Confirmada</code> en intervalo UTC semiabierto.</td></tr>
+<tr><td><code>fn_ConsultarAuditoriaDML</code></td><td>fechas UTC opcionales + búsqueda → tabla</td><td>Filtra la bitácora DML; la API la consume indirectamente mediante SP.</td></tr>
+</tbody></table></div>
+<p>Las funciones tabulares no se exponen directamente a la cuenta HTTP; los procedimientos aplican permiso, zona horaria, paginación y proyección pública.</p>
+<h3>Seguridad, sesión y preferencias</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Procedimiento</th><th>Parámetros propios además de S</th><th>Permiso / consumidor</th><th>Resultado y efecto</th>
+</tr></thead><tbody>
+<tr><td><code>sp_LimpiarContextoAuditoria</code></td><td>ninguno</td><td>Interno</td><td>Limpia <code>UsuarioId</code>, usuario, IP, correlación y motivo de <code>SESSION_CONTEXT</code> en la conexión reutilizable.</td></tr>
+<tr><td><code>sp_RegistrarAcceso</code></td><td>usuario intentado/id, resultado, motivo, IP, agente, correlación</td><td>Interno</td><td>Inserta <code>Bitacora_Acceso</code>; nunca recibe contraseña/hash/salt/token.</td></tr>
+<tr><td><code>sp_ResolverSesion</code></td><td>permiso opcional, permitir cambio obligatorio, actualizar actividad; tres <code>OUTPUT</code></td><td>Interno, base de todos los SP protegidos</td><td>Valida sesión/cuenta/versiones/vencimientos/permiso, establece contexto y devuelve identidad.</td></tr>
+<tr><td><code>sp_ObtenerPermisosUsuario</code></td><td><code>@UsuarioId</code></td><td>Interno</td><td>Permisos y roles activos del usuario resuelto.</td></tr>
+<tr><td><code>sp_AutenticarUsuario</code></td><td>usuario, contraseña, hash de nueva sesión, agente, 30 min/8 h</td><td>Público desde login</td><td>Valida límite/estado/hash académico, registra acceso, crea sesión y devuelve usuario + permisos + roles.</td></tr>
+<tr><td><code>sp_ValidarSesionApi</code></td><td>S + <code>@ActualizarActividad bit</code></td><td>Middleware</td><td>Usuario/sesión + permisos + roles; opcionalmente renueva inactividad sin superar vencimiento absoluto.</td></tr>
+<tr><td><code>sp_CerrarSesion</code></td><td>S</td><td>Cuenta propia</td><td>Marca la sesión revocada.</td></tr>
+<tr><td><code>sp_ConsultarPerfil</code></td><td>S</td><td>Cuenta propia</td><td>Perfil; segundo recordset permisos; tercero roles.</td></tr>
+<tr><td><code>sp_ObtenerPreferenciasUsuario</code></td><td>S</td><td>Cuenta propia</td><td>Tema vigente; lectura sin confiar en ID del cliente.</td></tr>
+<tr><td><code>sp_GuardarPreferenciasUsuario</code></td><td><code>@Tema varchar(10)</code></td><td>Cuenta propia</td><td><code>MERGE</code>/actualiza `claro</td><td>oscuro</td><td>sistema`; devuelve tema y fecha.</td></tr>
+<tr><td><code>sp_CambiarPassword</code></td><td>contraseña actual/nueva</td><td>Cuenta propia; permitido durante cambio obligatorio</td><td>Salt/hash nuevos, incrementa versión, revoca sesiones y tokens; obliga a iniciar de nuevo.</td></tr>
+<tr><td><code>sp_SolicitarRecuperacion</code></td><td>identidad, hash del token, vigencia, IP/correlación</td><td>Público</td><td>Devuelve destino/vencimiento únicamente a la API cuando la cuenta es elegible; la API siempre emite la misma respuesta HTTP y escribe el enlace solo en el buzón privado.</td></tr>
+<tr><td><code>sp_ValidarTokenRecuperacion</code></td><td>hash del token</td><td>Interno, sin <code>GRANT</code> ni llamada desde la API actual</td><td>Indica token vigente sin devolver el secreto; queda disponible para diagnóstico administrativo controlado.</td></tr>
+<tr><td><code>sp_RestablecerPassword</code></td><td>hash del token, contraseña nueva, IP/correlación</td><td>Público con token</td><td>Consume atómicamente una vez, cambia salt/hash y revoca sesiones/tokens.</td></tr>
+</tbody></table></div>
+<p><code>sp_ResolverSesion</code> siempre se acompaña de <code>sp_LimpiarContextoAuditoria</code> en éxito y error. PA29 debe comprobar que una conexión del pool usada por otra cuenta no conserva actor residual.</p>
+<h3>Estado del servicio</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Procedimiento</th><th>Parámetros</th><th>Consumidor</th><th>Resultado</th>
+</tr></thead><tbody>
+<tr><td><code>sp_VerificarEstado</code></td><td>ninguno</td><td><code>GET /api/health</code></td><td>Una fila con estado de base, UTC de SQL, moneda y zona IANA. No requiere sesión y no expone configuración secreta.</td></tr>
+</tbody></table></div>
+<h3>Usuarios, roles y permisos</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Procedimiento</th><th>Parámetros propios además de S</th><th>Permiso</th><th>Resultado / reglas</th>
+</tr></thead><tbody>
+<tr><td><code>sp_ListarPermisos</code></td><td>—</td><td><code>ROLES_GESTIONAR</code></td><td>Catálogo activo ordenado por módulo/código.</td></tr>
+<tr><td><code>sp_ListarUsuarios</code></td><td>P</td><td><code>USUARIOS_GESTIONAR</code></td><td>Lista usuarios y roles JSON; incluye estado, cambio obligatorio y <code>rowversion</code>.</td></tr>
+<tr><td><code>sp_CrearUsuario</code></td><td>usuario, nombre visible, correo, contraseña temporal, <code>TVP_ListaEnteros</code></td><td><code>USUARIOS_GESTIONAR</code></td><td>Crea cuenta, roles y preferencia <code>sistema</code>; hash/salt se generan en SQL.</td></tr>
+<tr><td><code>sp_ActualizarUsuario</code></td><td>id, campos opcionales, flags de cambio, roles TVP, versión</td><td><code>USUARIOS_GESTIONAR</code></td><td>Control optimista, protege último administrador y revoca sesiones al cambiar estado/roles.</td></tr>
+<tr><td><code>sp_GenerarPasswordTemporal</code></td><td>usuario id, contraseña temporal</td><td><code>USUARIOS_GESTIONAR</code></td><td>Salt/hash nuevos, cambio obligatorio; revoca sesiones/tokens.</td></tr>
+<tr><td><code>sp_ListarRoles</code></td><td>P</td><td><code>ROLES_GESTIONAR</code></td><td>Lista roles y permisos JSON con <code>rowversion</code>.</td></tr>
+<tr><td><code>sp_CrearRol</code></td><td>nombre, descripción, <code>TVP_CodigosPermiso</code></td><td><code>ROLES_GESTIONAR</code></td><td>Crea rol y asignaciones validadas.</td></tr>
+<tr><td><code>sp_ActualizarRol</code></td><td>id, campos/flags opcionales, permisos TVP, versión</td><td><code>ROLES_GESTIONAR</code></td><td>Control optimista; protege rol administrador; al cambiar permisos incrementa versión de seguridad y revoca sesiones afectadas.</td></tr>
+</tbody></table></div>
+<h3>Catálogos</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Procedimiento</th><th>Parámetros propios además de S</th><th>Permiso</th><th>Resultado / reglas</th>
+</tr></thead><tbody>
+<tr><td><code>sp_ListarUnidadesMedida</code></td><td>—</td><td><code>VENTAS_CREAR</code> o <code>PRODUCTOS_GESTIONAR</code></td><td>Unidades activas.</td></tr>
+<tr><td><code>sp_ListarProductos</code></td><td>P + estado</td><td>venta o gestión de productos</td><td>Lista con precio como texto, stock, estado, fecha y versión.</td></tr>
+<tr><td><code>sp_CrearProducto</code></td><td>código, descripción, unidad, precio texto</td><td><code>PRODUCTOS_GESTIONAR</code></td><td>Valida catálogo/rango, crea con stock 0; código único.</td></tr>
+<tr><td><code>sp_ActualizarProducto</code></td><td>id, campos opcionales, versión</td><td><code>PRODUCTOS_GESTIONAR</code></td><td>Actualización con <code>rowversion</code>; no cambia stock.</td></tr>
+<tr><td><code>sp_AjustarInventario</code></td><td>producto, variación, motivo, versión</td><td><code>PRODUCTOS_GESTIONAR</code></td><td>Bloqueo transaccional, stock en rango, <code>MovimientoInventario</code> y motivo en auditoría.</td></tr>
+<tr><td><code>sp_ListarClientes</code></td><td>P + estado</td><td>venta o gestión de clientes</td><td>Lista con contacto, estado y versión.</td></tr>
+<tr><td><code>sp_CrearCliente</code></td><td>identificador, nombre, correo, teléfono</td><td><code>CLIENTES_GESTIONAR</code></td><td>Crea cliente; identificador único.</td></tr>
+<tr><td><code>sp_ActualizarCliente</code></td><td>id, campos/flags opcionales, versión</td><td><code>CLIENTES_GESTIONAR</code></td><td>Actualización optimista; cadena vacía puede limpiar contacto.</td></tr>
+</tbody></table></div>
+<p>Todos los listados validan página <code>&gt;0</code>, tamaños <code>10/25/50</code>, valores cerrados de orden/estado y desempate por PK.</p>
+<h3>Ventas, comprobantes, reporte e inicio</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Procedimiento</th><th>Parámetros propios además de S</th><th>Permiso</th><th>Recordsets / garantías</th>
+</tr></thead><tbody>
+<tr><td><code>sp_CotizarVenta</code></td><td>cliente, <code>TVP_DetalleFactura</code></td><td><code>VENTAS_CREAR</code></td><td>1: líneas con precio/stock; 2: subtotal, tasa, IVA, total y moneda. Precios/IVA se leen de SQL.</td></tr>
+<tr><td><code>sp_ProcesarVentaTransaccional</code></td><td>cliente, detalle TVP, total aceptado texto, UUID</td><td><code>VENTAS_CREAR</code></td><td>Una fila de factura; <code>replayed</code> distingue alta/reintento. Serializa clave por usuario, bloquea productos en orden, recalcula, descuenta stock y crea factura/detalle/caja en una transacción.</td></tr>
+<tr><td><code>sp_ConsultarResultadoVenta</code></td><td>UUID</td><td><code>VENTAS_CREAR</code></td><td>Factura de esa clave y usuario o cero filas si aún no está resuelta.</td></tr>
+<tr><td><code>sp_ConsultarVentasPropias</code></td><td>P, fechas opcionales, alcance `mine</td><td>all`</td><td>venta propia; <code>all</code> requiere reportes</td><td>Lista y metadatos; fechas locales convertidas a intervalo UTC.</td></tr>
+<tr><td><code>sp_ConsultarFactura</code></td><td>factura id</td><td>dueño con <code>VENTAS_CREAR</code> o <code>REPORTES_LEER</code></td><td>1: encabezado histórico; 2: líneas; 3: movimiento de caja. Fuera de alcance responde como no encontrado.</td></tr>
+<tr><td><code>sp_ObtenerHistoricoVentas</code></td><td>fechas obligatorias + P</td><td><code>REPORTES_LEER</code></td><td>1: ventas; 2: metadatos; 3: totales de todo el filtro. Máximo 366 días.</td></tr>
+<tr><td><code>sp_ObtenerResumenInicio</code></td><td>—</td><td>sesión</td><td>1: resumen diario solo con reportes; 2: accesos rápidos por permiso.</td></tr>
+</tbody></table></div>
+<h4>Atomicidad e idempotencia de <code>sp_ProcesarVentaTransaccional</code></h4>
+<ol><li>valida 1–100 filas y total textual exacto;</li><li>deriva actor de la sesión;</li><li>calcula huella SHA-256 canónica de cliente, total y detalle ordenado;</li><li>abre transacción y toma <code>sp_getapplock</code> exclusivo por usuario+UUID;</li><li>si existe la clave: misma huella devuelve la factura; huella distinta lanza <code>51008</code>;</li><li>bloquea cliente/configuración y productos en orden de <code>ProductoId</code>;</li><li>recalcula subtotal/IVA/total y comprueba stock/total aceptado;</li><li>descuenta stock e inserta encabezado, líneas y movimiento de caja;</li><li>confirma todo o revierte todo con <code>XACT_ABORT</code>/<code>TRY…CATCH</code>;</li><li>tras rollback, registra <code>Bitacora_Incidente</code> solo para fallos técnicos no funcionales y limpia el contexto.</li></ol>
+<p>La secuencia de factura puede dejar huecos por rollback; la integridad se evalúa por filas persistidas, no por continuidad numérica.</p>
+<h3>Auditoría</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Procedimiento</th><th>Parámetros propios además de S</th><th>Permiso</th><th>Resultado</th>
+</tr></thead><tbody>
+<tr><td><code>sp_ConsultarBitacoraAcceso</code></td><td>P + fechas opcionales</td><td><code>AUDITORIA_LEER</code></td><td>Intento/actor, resultado, motivo interno, IP, principal SQL, host/app y correlación.</td></tr>
+<tr><td><code>sp_ConsultarAuditoriaDML</code></td><td>P + fechas opcionales</td><td><code>AUDITORIA_LEER</code></td><td>Actor, objeto, operación, registro, contexto, motivo e imágenes JSON.</td></tr>
+<tr><td><code>sp_ConsultarAuditoriaDDL</code></td><td>P + fechas opcionales</td><td><code>AUDITORIA_LEER</code></td><td>Evento/objeto/esquema/comando, principal, contexto y correlación.</td></tr>
+</tbody></table></div>
+<p>Las fechas ingresadas son días locales y los SP las convierten a UTC semiabierto. La API proyecta solo estos SP; no concede <code>SELECT</code> directo sobre bitácoras.</p>
+<h3>Triggers</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Trigger</th><th>Ámbito</th><th>Datos registrados</th>
+</tr></thead><tbody>
+<tr><td><code>trg_Usuario_AuditoriaDML</code></td><td><code>Usuario</code> I/U/D</td><td>Identidad visible, correo, cambio obligatorio, estado y versión de seguridad; excluye hash/salt.</td></tr>
+<tr><td><code>trg_Rol_AuditoriaDML</code></td><td><code>Rol</code> I/U/D</td><td>Nombre, descripción, indicador administrador y estado.</td></tr>
+<tr><td><code>trg_UsuarioRol_AuditoriaDML</code></td><td><code>Usuario_Rol</code> I/U/D</td><td>Par usuario/rol.</td></tr>
+<tr><td><code>trg_RolPermiso_AuditoriaDML</code></td><td><code>Rol_Permiso</code> I/U/D</td><td>Par rol/permiso.</td></tr>
+<tr><td><code>trg_Producto_AuditoriaDML</code></td><td><code>Producto</code> I/U/D</td><td>Catálogo, precio, stock y estado.</td></tr>
+<tr><td><code>trg_Cliente_AuditoriaDML</code></td><td><code>Cliente</code> I/U/D</td><td>Identificación, nombre, contacto y estado.</td></tr>
+<tr><td><code>trg_Factura_AuditoriaDML</code></td><td><code>Factura</code> I/U/D</td><td>Identidades referenciadas, moneda/tasa e importes; excluye clave/huella.</td></tr>
+<tr><td><code>trg_DetalleFactura_AuditoriaDML</code></td><td><code>Detalle_Factura</code> I/U/D</td><td>Factura/producto, cantidad, precio e importe.</td></tr>
+<tr><td><code>trg_MovimientoCaja_AuditoriaDML</code></td><td><code>MovimientoCaja</code> I/U/D</td><td>Factura, tipo, importe, moneda y usuario.</td></tr>
+<tr><td><code>trg_PreferenciaUsuario_AuditoriaDML</code></td><td><code>PreferenciaUsuario</code> I/U/D</td><td>Usuario y tema.</td></tr>
+<tr><td><code>trg_SecureFinance_AuditoriaDDL</code></td><td>base, eventos DDL</td><td><code>EVENTDATA</code>, comando, objeto, principal SQL, actor/contexto; evita autorregistrar su propia bitácora/trigger.</td></tr>
+</tbody></table></div>
+<p>Los triggers DML son por conjuntos: unen <code>inserted</code> y <code>deleted</code> por PK y generan una fila de bitácora por registro afectado. Al ser parte de la transacción, un rollback también revierte su auditoría DML. PA09 verifica ambas propiedades.</p>
+<h3>Errores de dominio</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>SQL</th><th>Significado</th><th>HTTP esperado</th>
+</tr></thead><tbody>
+<tr><td>51001</td><td>sesión inválida/vencida/revocada</td><td>401</td></tr>
+<tr><td>51002</td><td>permiso insuficiente</td><td>403</td></tr>
+<tr><td>51003</td><td>recurso no encontrado/fuera de alcance</td><td>404</td></tr>
+<tr><td>51004</td><td>conflicto de negocio</td><td>409</td></tr>
+<tr><td>51005</td><td>límite de intentos</td><td>429</td></tr>
+<tr><td>51006</td><td>dato/filtro/configuración inválida</td><td>400</td></tr>
+<tr><td>51007</td><td>cambio de contraseña obligatorio</td><td>403</td></tr>
+<tr><td>51008</td><td>clave idempotente usada con otra huella</td><td>409</td></tr>
+<tr><td>51009</td><td><code>rowversion</code> obsoleta</td><td>409</td></tr>
+<tr><td>51010</td><td>stock insuficiente/fuera de rango</td><td>409</td></tr>
+<tr><td>51011</td><td>credenciales inválidas</td><td>400 genérico</td></tr>
+<tr><td>51012</td><td>token de recuperación inválido/vencido/usado</td><td>400 genérico</td></tr>
+</tbody></table></div>
+<h3>Rol SQL y aprovisionamiento</h3>
+<p><code>07_permissions.sql</code> crea <code>SecureFinanceApiExecutor</code> y aplica mínimo privilegio:</p>
+<ul><li><code>DENY SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo</code>;</li><li><code>DENY ALTER, CONTROL, TAKE OWNERSHIP ON SCHEMA::dbo</code>;</li><li><code>GRANT EXECUTE</code> solo a los procedimientos públicos consumidos por la API, incluido <code>sp_VerificarEstado</code>;</li><li>no concede ejecución directa a los cinco SP internos inventariados arriba ni a funciones;</li><li><code>GRANT EXECUTE</code> y <code>GRANT REFERENCES</code> sobre los tres TVP enviados por <code>mssql</code>;</li><li>ninguna pertenencia a <code>db_owner</code>, <code>db_datareader</code>, <code>db_datawriter</code> o roles de servidor elevados.</li></ul>
+<p><code>provision-api-login.sql</code> se ejecuta por separado en modo SQLCMD con <code>DatabaseName</code>, <code>ApiLoginName</code> y una contraseña privada de al menos 16 caracteres. Crea el login/usuario si no existe y lo agrega únicamente a <code>SecureFinanceApiExecutor</code>. La contraseña no se guarda en el repositorio ni en evidencia.</p>
+<p><code>SchemaMigration</code> registra <code>0001_baseline</code>, <code>0002_security_contract_hardening</code> y el principal administrativo que aplicó cada una. La segunda retira <code>VENTAS_CREAR</code> de roles administradores existentes, sanea texto DDL legado y refuerza contratos. Estas marcas confirman aplicación administrativa, no autorizan migraciones desde el arranque de Express ni sustituyen su ensayo previo.</p>
+<h3>Verificación del catálogo</h3>
+<p>La presencia de objetos puede inventariarse después de instalar, sin probar comportamiento:</p>
+<pre data-language="sql"><code>SELECT s.name AS esquema, o.name, o.type_desc
+FROM sys.objects AS o
+JOIN sys.schemas AS s ON s.schema_id = o.schema_id
+WHERE s.name = N'dbo'
+  AND (o.name LIKE N'sp[_]%' OR o.name LIKE N'fn[_]%' OR o.name LIKE N'trg[_]%')
+ORDER BY o.type_desc, o.name;
+
+SELECT s.name AS esquema, tt.name AS tipo_tabla
+FROM sys.table_types AS tt
+JOIN sys.schemas AS s ON s.schema_id = tt.schema_id
+WHERE s.name = N'dbo'
+ORDER BY tt.name;</code></pre>
+<p><code>database/tests/01_contract.sql</code> automatiza el inventario y algunas firmas/reglas de la línea base; <code>02_pool_identity_pa29.sql</code> comprueba limpieza básica de contexto; <code>03_save-transaction.sql</code> demuestra savepoint; y <code>04_sale-rollback-fault.sql</code> fuerza y verifica un rollback posterior al encabezado sin persistir fixtures. <code>pnpm sql:verify</code> ejecuta únicamente <code>sp_VerificarEstado</code> con la cuenta de aplicación, mientras la suite de integración comprueba denegaciones directas del mismo login. Ninguna comprobación aislada demuestra todas las carreras, autorización extremo a extremo o continuidad: PA01–PA32 permanecen <strong>Pendiente</strong> hasta una corrida completa con evidencia enlazada.</p></section>
+<section class="document-section" data-source="traceability.md"><h2>Trazabilidad funcional</h2>
+<p>Esta matriz enlaza la especificación funcional resumida con rutas React, operaciones HTTP y objetos SQL presentes en el código. Una relación indica cobertura estática de diseño/código; <strong>no</strong> significa que el recorrido funcione en runtime ni que una PA esté ejecutada. El estado oficial de todas las PA se conserva en <a href="test-matrix.md">Matriz PA01–PA32</a>.</p>
+<p>La flecha de trazabilidad es direccional: la expectativa UC/PA conduce a la implementación y después a la evidencia. La existencia de implementación no reemplaza la expectativa, y una prueba unitaria con dobles de SQL no reemplaza una corrida contra SQL Server real.</p>
+<h3>UC → pantalla → HTTP → SQL → PA</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>UC</th><th>Caso y pantalla/ruta</th><th>Endpoint(s)</th><th>Procedimiento(s) / función SQL</th><th>PA principales</th>
+</tr></thead><tbody>
+<tr><td>UC01</td><td>Autenticación de usuario — <code>/acceso</code></td><td><code>POST /api/auth/login</code>; <code>GET /api/auth/session</code></td><td><code>sp_AutenticarUsuario</code>, <code>sp_ValidarSesionApi</code>, <code>sp_RegistrarAcceso</code>, <code>sp_ObtenerPermisosUsuario</code></td><td>PA01, PA04, PA11, PA29</td></tr>
+<tr><td>UC02</td><td>Cambio de contraseña segura e inicial obligatorio — <code>/perfil/seguridad</code></td><td><code>PUT /api/me/password</code></td><td><code>sp_CambiarPassword</code>, <code>fn_ContrasenaCumplePolitica</code></td><td>PA02, PA11</td></tr>
+<tr><td>UC03</td><td>Venta transaccional — <code>/ventas/nueva</code>, <code>/ventas</code>, <code>/ventas/:id</code></td><td><code>POST /api/sales/quote</code>; <code>POST /api/sales</code>; <code>GET /api/sales</code>; <code>GET /api/sales/result/:key</code>; <code>GET /api/sales/:id</code></td><td><code>sp_CotizarVenta</code>, <code>sp_ProcesarVentaTransaccional</code>, <code>sp_ConsultarVentasPropias</code>, <code>sp_ConsultarResultadoVenta</code>, <code>sp_ConsultarFactura</code>, <code>fn_CalcularSubtotal</code>, <code>fn_CalcularIVA</code>, <code>TVP_DetalleFactura</code></td><td>PA05–PA10, PA22, PA25, PA28, PA30</td></tr>
+<tr><td>UC04</td><td>Consulta de bitácoras y auditoría — <code>/auditoria</code></td><td><code>GET /api/audit/access</code>; <code>GET /api/audit/dml</code>; <code>GET /api/audit/ddl</code></td><td><code>sp_ConsultarBitacoraAcceso</code>, <code>sp_ConsultarAuditoriaDML</code>, <code>sp_ConsultarAuditoriaDDL</code>, <code>fn_ConsultarAuditoriaDML</code>; triggers DML y DDL</td><td>PA01, PA04, PA09, PA12, PA29</td></tr>
+<tr><td>UC05</td><td>Recuperación/restablecimiento — <code>/recuperar</code>, <code>/restablecer</code></td><td><code>POST /api/auth/recover</code>; <code>POST /api/auth/reset</code></td><td><code>sp_SolicitarRecuperacion</code>, <code>sp_RestablecerPassword</code>, <code>fn_ContrasenaCumplePolitica</code></td><td>PA03, PA11</td></tr>
+<tr><td>UC06</td><td>Perfil y permisos propios — <code>/perfil</code></td><td><code>GET /api/me</code>; <code>GET /api/me/preferences</code></td><td><code>sp_ConsultarPerfil</code>, <code>sp_ObtenerPermisosUsuario</code>, <code>sp_ObtenerPreferenciasUsuario</code></td><td>PA04, PA18, PA23, PA29</td></tr>
+<tr><td>UC07</td><td>Roles y permisos — <code>/roles</code></td><td><code>GET/POST/PATCH /api/roles</code>; <code>GET /api/permissions</code></td><td><code>sp_ListarRoles</code>, <code>sp_CrearRol</code>, <code>sp_ActualizarRol</code>, <code>sp_ListarPermisos</code>, <code>fn_TienePermiso</code></td><td>PA04, PA11, PA18, PA27</td></tr>
+<tr><td>UC08</td><td>Productos, precios, estado e inventario — <code>/productos</code></td><td><code>GET/POST/PATCH /api/products</code>; <code>GET /api/products/options</code>; <code>POST /api/products/:id/inventory</code></td><td><code>sp_ListarProductos</code>, <code>sp_ListarUnidadesMedida</code>, <code>sp_CrearProducto</code>, <code>sp_ActualizarProducto</code>, <code>sp_AjustarInventario</code>; triggers DML</td><td>PA09, PA10, PA21, PA27, PA28</td></tr>
+<tr><td>UC09</td><td>Clientes y estado — <code>/clientes</code></td><td><code>GET/POST/PATCH /api/customers</code></td><td><code>sp_ListarClientes</code>, <code>sp_CrearCliente</code>, <code>sp_ActualizarCliente</code>; triggers DML</td><td>PA10, PA21, PA27, PA28</td></tr>
+<tr><td>UC10</td><td>Reportes de ventas — <code>/reportes/ventas</code>, detalle <code>/ventas/:id</code></td><td><code>GET /api/reports/sales</code>; <code>GET /api/sales/:id</code></td><td><code>sp_ObtenerHistoricoVentas</code>, <code>sp_ConsultarFactura</code>, <code>fn_ObtenerHistoricoVentas</code></td><td>PA12, PA21, PA25, PA28, PA30</td></tr>
+<tr><td>UC11</td><td>Administración de usuarios — <code>/usuarios</code></td><td><code>GET/POST/PATCH /api/users</code>; <code>POST /api/users/:id/reset-password</code></td><td><code>sp_ListarUsuarios</code>, <code>sp_CrearUsuario</code>, <code>sp_ActualizarUsuario</code>, <code>sp_GenerarPasswordTemporal</code></td><td>PA11, PA18, PA21, PA27</td></tr>
+<tr><td>UC12</td><td>Cierre, expiración y revocación — acción «Cerrar sesión»</td><td><code>POST /api/auth/logout</code>; validación previa de todas las rutas protegidas</td><td><code>sp_CerrarSesion</code>, <code>sp_ValidarSesionApi</code>, <code>sp_ResolverSesion</code></td><td>PA11, PA23, PA29</td></tr>
+<tr><td>UC13</td><td>Apariencia por navegador/cuenta — selectores de acceso, recuperación, restablecimiento, encabezado y <code>/perfil</code></td><td><code>GET/PUT /api/me/preferences</code> para cuenta; sin HTTP para preferencia anónima</td><td><code>sp_ObtenerPreferenciasUsuario</code>, <code>sp_GuardarPreferenciasUsuario</code></td><td>PA13–PA17, PA20, PA24</td></tr>
+<tr><td>UC14</td><td>Inicio y navegación autorizada — <code>/inicio</code>, guardas y páginas de sistema</td><td><code>GET /api/dashboard</code>; comprobación de sesión/permisos en cada endpoint</td><td><code>sp_ObtenerResumenInicio</code>, <code>sp_ValidarSesionApi</code>, <code>sp_ResolverSesion</code>, <code>fn_TienePermiso</code></td><td>PA18, PA19, PA23</td></tr>
+</tbody></table></div>
+<p><code>sp_ValidarTokenRecuperacion</code> forma parte del catálogo SQL interno, pero la API actual no lo invoca ni le concede <code>EXECUTE</code> a la cuenta HTTP; por eso no se presenta como eslabón del recorrido UC05.</p>
+<h3>Trazabilidad operativa fuera de UC</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Operación</th><th>Entrada</th><th>SQL/artefacto</th><th>Alcance comprobable</th>
+</tr></thead><tbody>
+<tr><td>Salud inmediata</td><td><code>GET /api/health</code>; <code>pnpm sql:verify</code></td><td><code>sp_VerificarEstado</code>; <code>scripts/Test-Database.ps1</code></td><td>Conectividad y permiso de ejecución del SP; no prueba salud integral ni QC.</td></tr>
+<tr><td>Preparación local</td><td><code>scripts/Install-Database.ps1</code></td><td><code>install.sql</code> → aprovisionamiento API → bootstrap → semilla opcional <code>_Test</code></td><td>Secuencia implementada; PA32 exige ejecutarla en copia limpia y registrar evidencia.</td></tr>
+<tr><td>Contrato SQL</td><td>ejecución administrativa de <code>database/tests/01_contract.sql</code></td><td>catálogos <code>sys.*</code> y reglas puntuales</td><td>Inventario/firmas/reglas inspeccionadas por el script; no sustituye PA funcionales.</td></tr>
+<tr><td>Aislamiento de contexto</td><td><code>database/tests/02_pool_identity_pa29.sql</code></td><td><code>sp_ResolverSesion</code>, <code>SESSION_CONTEXT</code></td><td>Caso SQL de limpieza ante sesión inválida; PA29 completo también exige alternar cuentas mediante el pool/API.</td></tr>
+<tr><td>Mínimo privilegio real</td><td><code>RUN_SQL_INTEGRATION=true</code>; <code>pnpm test:integration</code></td><td>login SQL configurado en <code>.env</code>, <code>sp_VerificarEstado</code> y denegaciones directas</td><td>Comprueba un SP concedido y tres operaciones denegadas; no sustituye toda la matriz de permisos.</td></tr>
+<tr><td>Humo funcional real</td><td><code>pnpm test:smoke</code> sobre <code>_Test</code></td><td>API integrada, SP y datos sintéticos</td><td>Cambio inicial, permisos, tema, inventario, cotización, venta/idempotencia secuencial, comprobante y reporte; cobertura parcial de varias PA.</td></tr>
+<tr><td>Rollback posterior al encabezado</td><td><code>database/tests/04_sale-rollback-fault.sql</code></td><td>trigger temporal transaccional y <code>sp_ProcesarVentaTransaccional</code></td><td>Comprueba ausencia de efectos parciales e incidente separado en un punto; PA06 exige acta completa.</td></tr>
+<tr><td>Interfaz en navegador</td><td><code>pnpm test:e2e</code>; <code>pnpm test:e2e:private</code></td><td>Microsoft Edge, Axe, API/SQL real para el recorrido privado</td><td>Cobertura automatizada parcial de páginas, temas y viewports; teclado/zoom/estados restantes siguen manuales.</td></tr>
+<tr><td>Respaldo/restauración</td><td><code>database/operations/*.sql</code> y guía operativa</td><td><code>BACKUP</code>, <code>VERIFYONLY</code>, <code>RESTORE</code></td><td>Herramientas disponibles; PA31/QC07 requieren una restauración aislada medida y evidenciada.</td></tr>
+</tbody></table></div>
+<h3>Rutas privadas y permiso visible</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Ruta</th><th>Permiso de entrada</th><th>Alcance adicional en SQL/API</th>
+</tr></thead><tbody>
+<tr><td><code>/inicio</code></td><td>sesión válida</td><td>El resumen global solo se entrega con <code>REPORTES_LEER</code>; accesos rápidos dependen de permisos.</td></tr>
+<tr><td><code>/ventas/nueva</code></td><td><code>VENTAS_CREAR</code></td><td>Actor tomado de sesión; cliente/productos/stock/precios validados por SQL.</td></tr>
+<tr><td><code>/ventas</code> y <code>/ventas/:id</code></td><td><code>VENTAS_CREAR</code> o <code>REPORTES_LEER</code></td><td>El primero limita a facturas propias; el segundo permite todas.</td></tr>
+<tr><td><code>/productos</code></td><td><code>VENTAS_CREAR</code> o <code>PRODUCTOS_GESTIONAR</code></td><td>Solo <code>PRODUCTOS_GESTIONAR</code> muta catálogo/inventario.</td></tr>
+<tr><td><code>/clientes</code></td><td><code>VENTAS_CREAR</code> o <code>CLIENTES_GESTIONAR</code></td><td>Solo <code>CLIENTES_GESTIONAR</code> muta catálogo.</td></tr>
+<tr><td><code>/reportes/ventas</code></td><td><code>REPORTES_LEER</code></td><td>Rango máximo de 366 días y totales del filtro completo.</td></tr>
+<tr><td><code>/auditoria</code></td><td><code>AUDITORIA_LEER</code></td><td>La cuenta API solo consulta bitácoras mediante SP.</td></tr>
+<tr><td><code>/usuarios</code></td><td><code>USUARIOS_GESTIONAR</code></td><td>Protege último administrador y revoca seguridad al cambiar estado/roles.</td></tr>
+<tr><td><code>/roles</code></td><td><code>ROLES_GESTIONAR</code></td><td>Protege rol administrador y revoca sesiones afectadas al cambiar permisos.</td></tr>
+<tr><td><code>/perfil</code></td><td>sesión válida</td><td>Solo identidad, roles, permisos y preferencia de la sesión.</td></tr>
+<tr><td><code>/perfil/seguridad</code></td><td>sesión válida, incluso cambio obligatorio</td><td>Tras cambiar contraseña se termina la sesión.</td></tr>
+</tbody></table></div>
+<h3>Cobertura PA transversal</h3>
+<p>Estas PA atraviesan más de un UC y deben enlazarse a evidencias por operación, no adjudicarse a una sola pantalla.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>PA</th><th>Cobertura transversal</th>
+</tr></thead><tbody>
+<tr><td>PA20</td><td>Formularios interactivos UC01–UC12; validación, conservación no sensible, navegación con cambios y cambio de tema.</td></tr>
+<tr><td>PA21</td><td>Listados de facturas, productos, clientes, reportes, auditoría, usuarios y roles; filtros, paginación, orden y estados.</td></tr>
+<tr><td>PA24</td><td>Todos los UC visibles: teclado, foco, etiquetas, contraste, 200 %, 320/768/1280 y ambos temas.</td></tr>
+<tr><td>PA26</td><td>Todos los módulos: runtime sin Internet y fallos diferenciados de API/BD.</td></tr>
+<tr><td>PA27</td><td>Límites, cuerpos estrictos, <code>rowversion</code> y concurrencia en catálogos/seguridad.</td></tr>
+<tr><td>PA29</td><td>Autenticación/autorización/auditoría en conexiones reutilizadas; identidad siempre desde la sesión.</td></tr>
+<tr><td>PA30</td><td>Venta y reportes bajo QC01/QC02 con dataset y equipo registrados.</td></tr>
+<tr><td>PA31</td><td>Continuidad de todos los datos persistentes mediante respaldo/restauración.</td></tr>
+<tr><td>PA32</td><td>Instalación, compilación, reinicio, persistencia y operación offline.</td></tr>
+</tbody></table></div>
+<h3>Trazabilidad de integridad de venta</h3>
+<pre data-language="mermaid"><code>flowchart LR
+    UC03[UC03 Venta] --&gt; UI[/ventas/nueva]
+    UI --&gt; Q[POST /api/sales/quote]
+    UI --&gt; S[POST /api/sales]
+    S --&gt; TVP[dbo.TVP_DetalleFactura]
+    S --&gt; SP[sp_ProcesarVentaTransaccional]
+    SP --&gt; F[(Factura)]
+    SP --&gt; D[(Detalle_Factura)]
+    SP --&gt; P[(Producto/stock)]
+    SP --&gt; C[(MovimientoCaja)]
+    SP --&gt; A[(Auditoría DML)]
+    SP --&gt; R[sp_ConsultarResultadoVenta]
+    F --&gt; PAs[PA05 PA06 PA07 PA08 PA10 PA22 PA28]</code></pre>
+<h3>Regla de mantenimiento</h3>
+<p>Cuando cambie una ruta, SP o permiso, se actualizan en la misma revisión:</p>
+<ol><li>este mapa;</li><li><a href="api-contracts.md">Contratos API</a>;</li><li><a href="stored-procedures.md">Catálogo SQL</a>;</li><li>la PA afectada sin alterar su resultado observado previo; si el contrato cambió, se programa una nueva corrida.</li></ol>
+<p>También se actualiza el conteo de inventario del <a href="README.md#inventario-estático-contrastado">README de documentación</a>. Si falta un arnés necesario, se conserva la PA en <strong>Pendiente</strong> y se registra el hueco; no se infiere <code>Aprobada</code> ni <code>Bloqueada</code> sin una corrida y causa documentadas.</p></section>
+<section class="document-section" data-source="user-manual.md"><h2>Manual de usuario</h2>
+<h3>Antes de empezar</h3>
+<p>SecureFinance ERP es una aplicación local. Para utilizarla deben estar activos SQL Server y la API en el equipo autorizado. El runtime está diseñado sin CDN ni servicio externo, pero la operación sin Internet todavía debe comprobarse mediante PA26/PA32. Una conexión a Internet no sustituye una API o base detenida.</p>
+<p>Use una cuenta individual. No comparta contraseñas, credenciales temporales, enlaces de recuperación ni capturas con datos privados. Los menús dependen de los permisos de la cuenta y una opción ausente no se habilita cambiando la URL.</p>
+<h3>Acceso y sesión</h3>
+<h4>Iniciar sesión</h4>
+<ol><li>Abra <code>/acceso</code>.</li><li>Escriba el usuario y la contraseña exactamente como fueron entregados. El usuario admite letras ASCII, números, punto, guion y guion bajo.</li><li>Seleccione <strong>Acceder</strong>.</li><li>Si la credencial es temporal, el sistema conduce a <code>/perfil/seguridad</code>; los demás módulos permanecen bloqueados hasta cambiarla.</li></ol>
+<p>Los mensajes de credencial inválida o cuenta inactiva son deliberadamente generales. Después de varios intentos puede aparecer una espera por limitación; no repita envíos rápidos.</p>
+<h4>Cerrar sesión</h4>
+<p>Abra el menú de la cuenta en el encabezado y elija <strong>Cerrar sesión</strong>. La sesión del servidor se revoca, la cookie se elimina y se vuelve a <code>/acceso</code>. Cierre sesión antes de dejar el equipo; cerrar solamente una pestaña no equivale a cerrar la sesión.</p>
+<p>La sesión también termina por inactividad, vencimiento absoluto, desactivación de cuenta, cambio de contraseña o cambio de permisos. Si ocurre, se limpian los datos privados en memoria y se solicita acceso de nuevo.</p>
+<h3>Recuperación y contraseñas</h3>
+<h4>Recuperar acceso</h4>
+<ol><li>Desde <code>/acceso</code>, elija <strong>Recuperar acceso</strong>.</li><li>Escriba usuario o correo y seleccione <strong>Solicitar recuperación</strong>.</li><li>La respuesta siempre indica que la solicitud fue recibida. Si la cuenta existe y está habilitada, el administrador encontrará la instrucción en el canal privado configurado.</li><li>Abra el enlace de <code>/restablecer</code> antes de 15 minutos. Es de un solo uso.</li><li>Escriba y confirme la contraseña nueva.</li></ol>
+<p>Nunca solicite que el enlace o token se publique en una captura, chat o incidencia. Un enlace vencido o consumido debe reemplazarse con una solicitud nueva.</p>
+<h4>Cambiar contraseña</h4>
+<p>En el menú de la cuenta, abra <strong>Seguridad</strong>. Introduzca la contraseña actual o temporal, la nueva y su confirmación. La contraseña nueva debe tener:</p>
+<ul><li>entre 12 y 128 caracteres;</li><li>al menos una mayúscula y una minúscula;</li><li>al menos un número;</li><li>al menos un símbolo.</li></ul>
+<p>No se eliminan espacios al principio o al final. Tras el cambio, todas las sesiones y tokens de recuperación anteriores quedan revocados y se debe iniciar sesión con la contraseña nueva.</p>
+<h3>Apariencia: Claro, Oscuro y Sistema</h3>
+<p>El selector <strong>Apariencia</strong> está disponible en las pantallas públicas, el encabezado privado y <strong>Mi perfil</strong>.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Opción</th><th>Comportamiento</th>
+</tr></thead><tbody>
+<tr><td><strong>Claro</strong></td><td>Fondo cálido claro y superficies blancas; no sigue cambios del sistema operativo.</td></tr>
+<tr><td><strong>Oscuro</strong></td><td>Fondo grafito y superficies oscuras; no sigue cambios del sistema operativo.</td></tr>
+<tr><td><strong>Sistema</strong></td><td>Sigue <code>prefers-color-scheme</code>; si el navegador no lo ofrece, resuelve a Claro.</td></tr>
+</tbody></table></div>
+<p>Cambiar la opción no recarga la página ni debe borrar formularios, filtros, diálogos o una venta en edición. Antes de acceder, la preferencia es anónima y pertenece al navegador. Después de acceder, se usa la preferencia de la cuenta almacenada en SQL. Al cerrar sesión se restaura la preferencia anónima, de modo que las cuentas no comparten tema.</p>
+<p>Si el guardado falla, el tema se mantiene durante la sesión y aparece <strong>«Aplicado en esta sesión; no se pudo guardar»</strong>. Seleccione <strong>Reintentar</strong> cuando el servicio vuelva. Los cambios rápidos se serializan y la última selección es la deseada. Otra pestaña actualiza la preferencia al recuperar foco, salvo que tenga un cambio local pendiente.</p>
+<p>La impresión del comprobante siempre usa fondo claro, aun si la pantalla está en Oscuro; no modifica la preferencia.</p>
+<h3>Navegación y permisos</h3>
+<p>En escritorio, use la barra lateral. En pantallas estrechas, abra <strong>Menú</strong> en el encabezado y ciérrelo después de elegir una ruta. El enlace <strong>Saltar al contenido</strong> permite omitir la navegación con teclado.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Opción</th><th>Quién suele verla</th><th>Uso</th>
+</tr></thead><tbody>
+<tr><td>Inicio</td><td>cualquier sesión válida</td><td>Tareas autorizadas y, con <code>REPORTES_LEER</code>, resumen disponible.</td></tr>
+<tr><td>Nueva venta</td><td><code>VENTAS_CREAR</code></td><td>Cotizar y confirmar una venta.</td></tr>
+<tr><td>Facturas / Mis ventas</td><td><code>VENTAS_CREAR</code> o <code>REPORTES_LEER</code></td><td>Consultar e imprimir comprobantes autorizados.</td></tr>
+<tr><td>Productos</td><td>venta o gestión de productos</td><td>Consulta; mantenimiento/stock solo con gestión.</td></tr>
+<tr><td>Clientes</td><td>venta o gestión de clientes</td><td>Consulta; mantenimiento solo con gestión.</td></tr>
+<tr><td>Reportes</td><td><code>REPORTES_LEER</code></td><td>Ventas confirmadas por rango.</td></tr>
+<tr><td>Auditoría</td><td><code>AUDITORIA_LEER</code></td><td>Accesos, DML y DDL.</td></tr>
+<tr><td>Usuarios</td><td><code>USUARIOS_GESTIONAR</code></td><td>Cuentas, estado, roles y credencial temporal.</td></tr>
+<tr><td>Roles y permisos</td><td><code>ROLES_GESTIONAR</code></td><td>Roles y permisos efectivos.</td></tr>
+<tr><td>Mi perfil / Seguridad</td><td>cualquier sesión válida</td><td>Datos propios, apariencia y contraseña.</td></tr>
+</tbody></table></div>
+<p>Una ruta inexistente muestra <strong>Página no encontrada</strong> y permite volver a Inicio. Una ruta conocida sin permiso muestra <strong>Acceso no autorizado</strong>. Volver, recargar o alterar la interfaz no debe exponer contenido de otra cuenta.</p>
+<h3>Inicio</h3>
+<p><code>/inicio</code> muestra saludo, hora de actualización y accesos rápidos compatibles con la cuenta. Quien posee <code>REPORTES_LEER</code> puede ver el resumen autorizado; un Cajero sin ese permiso no ve métricas globales.</p>
+<p>Distinga estos estados:</p>
+<ul><li><strong>Preparando/Cargando:</strong> aún no hay resultado.</li><li><strong>Cero:</strong> la consulta terminó correctamente y el valor es cero.</li><li><strong>Sin datos:</strong> no existen filas para ese alcance.</li><li><strong>Error:</strong> el servicio no pudo completar una fuente; use <strong>Reintentar</strong>.</li></ul>
+<p>Un error no representa cero. Actualizar debe volver a pedir los datos y cambiar la hora mostrada.</p>
+<h3>Registrar una venta</h3>
+<h4>1. Cliente</h4>
+<p>En <code>/ventas/nueva</code>, busque por nombre o identificación y elija un cliente activo. Si no aparece, revise la búsqueda o solicite a quien posea <code>CLIENTES_GESTIONAR</code> que lo cree/active.</p>
+<h4>2. Productos</h4>
+<p>Busque código o descripción y agregue productos con existencia. Cada producto aparece una sola vez; aumente o reduzca su cantidad en la línea. Se permiten hasta 100 productos distintos y de 1 a 9999 unidades por producto. El borrador vive solo en memoria y se pierde al abandonar la página o terminar la sesión.</p>
+<h4>3. Cotización</h4>
+<p>Seleccione <strong>Cotizar venta</strong>. SQL Server obtiene precios y existencias actuales y devuelve subtotal, IVA y total. El precio mostrado antes de confirmar no procede de un valor editable del navegador. Si cambia cliente, producto o cantidad, actualice la cotización.</p>
+<h4>4. Confirmación</h4>
+<p>Revise cliente, líneas, subtotal, IVA y total; luego seleccione <strong>Confirmar venta</strong> y confirme el diálogo. Una venta correcta abre o permite abrir su comprobante. No actualice la página ni pulse repetidamente mientras está en curso.</p>
+<p>Si aparece <strong>Resultado desconocido</strong>, no cree otra venta ni cambie la clave del borrador. Use <strong>Consultar resultado</strong>. La aplicación consulta la misma operación hasta encontrar la factura o mantenerla pendiente. Después de una sesión nueva, revise <strong>Mis ventas</strong> antes de repetir manualmente.</p>
+<h4>Conflictos</h4>
+<ul><li><strong>Existencia insuficiente:</strong> ajuste cantidades y vuelva a cotizar; otra sesión pudo consumir el stock.</li><li><strong>Total cambió:</strong> revise la cotización actual; no fuerce el total anterior.</li><li><strong>Resultado desconocido:</strong> conserve la operación y resuelva con la misma clave.</li><li><strong>Servicio no disponible:</strong> no se considera confirmada; si el envío pudo alcanzar el servidor, reconcilie primero.</li></ul>
+<h3>Facturas y comprobantes</h3>
+<p>En <code>/ventas</code>, un Cajero ve sus propias facturas. Un usuario con <code>REPORTES_LEER</code> puede seleccionar alcance <strong>Todas</strong> o <strong>Propias</strong>. Filtre por factura/cliente y fechas. Aplicar un filtro vuelve a la página 1; puede mostrar 10, 25 o 50 filas.</p>
+<p>Abra una factura para ver cliente y cajero históricos, líneas, cantidades, precios, subtotal, IVA y total. Seleccione <strong>Imprimir</strong> para la vista del navegador. Consultar o imprimir nunca registra otra venta. Los cambios posteriores de cliente, producto o precio no reescriben el comprobante.</p>
+<h3>Productos e inventario</h3>
+<p>Quien vende puede consultar productos activos y stock. Con <code>PRODUCTOS_GESTIONAR</code> también puede:</p>
+<h4>Crear o editar</h4>
+<ol><li>Seleccione <strong>Nuevo producto</strong> o el icono <strong>Editar</strong>.</li><li>Complete código (1–30), descripción (2–160), unidad del catálogo y precio sin IVA (<code>0.01–999999.99</code>).</li><li>Guarde. Un producto nuevo comienza con stock 0.</li></ol>
+<p>Desactive un producto en vez de borrarlo. Si otra persona lo actualizó, se muestra conflicto de edición; cierre/recargue, revise el dato vigente y repita conscientemente.</p>
+<h4>Ajustar inventario</h4>
+<ol><li>Elija <strong>Ajustar inventario</strong>.</li><li>Introduzca un entero positivo para entrada o negativo para salida; no use cero.</li><li>Escriba un motivo de 10–250 caracteres.</li><li>Confirme.</li></ol>
+<p>El stock nunca puede quedar negativo. Todo ajuste conserva stock anterior/nuevo, actor, motivo, fecha y correlación.</p>
+<h3>Clientes</h3>
+<p>Quien vende puede buscar clientes activos. Con <code>CLIENTES_GESTIONAR</code>, seleccione <strong>Nuevo cliente</strong> o <strong>Editar</strong> y complete:</p>
+<ul><li>identificación: 1–30;</li><li>nombre o razón social: 2–120;</li><li>correo opcional: hasta 254;</li><li>teléfono opcional: hasta 30.</li></ul>
+<p>Desactivar conserva las facturas históricas. Un conflicto indica que el registro cambió desde que se abrió; recargue y revise antes de sobrescribir.</p>
+<h3>Reportes de ventas</h3>
+<p>Con <code>REPORTES_LEER</code>, abra <code>/reportes/ventas</code>, indique <strong>Desde</strong> y <strong>Hasta</strong> y aplique. El intervalo máximo es 366 días inclusivos. La tabla contiene ventas confirmadas y los totales corresponden a todo el filtro, no solo a la página visible.</p>
+<p>Una tabla vacía significa consulta correcta sin filas. Un panel de error significa que no hay resultado fiable; no copie ceros como métricas. Abra el detalle desde la fila para consultar/imprimir la factura histórica.</p>
+<h3>Auditoría</h3>
+<p>Con <code>AUDITORIA_LEER</code>, abra <code>/auditoria</code> y seleccione:</p>
+<ul><li><strong>Accesos:</strong> intentos, resultado público/interno autorizado, actor si fue resuelto, IP y correlación.</li><li><strong>Cambios DML:</strong> tabla, operación, registro, actor de aplicación, principal SQL e imágenes anterior/nueva sanitizadas.</li><li><strong>Esquema DDL:</strong> evento, objeto, principal SQL y comando administrativo.</li></ul>
+<p>Use búsqueda, rango y paginación. La auditoría es de solo lectura desde la cuenta de aplicación. No debe contener contraseñas, hashes, salts, cookies, tokens o cadenas de conexión; si observa uno, limite acceso a la evidencia y abra una incidencia de seguridad.</p>
+<h3>Usuarios</h3>
+<p>Con <code>USUARIOS_GESTIONAR</code>:</p>
+<ol><li>Cree una cuenta con usuario, nombre visible, correo opcional y roles.</li><li>Copie la contraseña temporal solo en el momento mostrado y entréguela por un canal privado. No la incluya en evidencia.</li><li>El usuario debe cambiarla al primer acceso.</li><li>Para editar, cambie nombre, correo, estado o roles y guarde con la versión vigente.</li><li><strong>Restablecer contraseña</strong> genera otra credencial temporal, revoca sesiones/tokens y vuelve obligatorio el cambio.</li></ol>
+<p>Desactivar o cambiar roles afecta la siguiente operación protegida. El sistema impide dejar la instalación sin un administrador operativo. No intente resolver ese control desde la interfaz del navegador.</p>
+<h3>Roles y permisos</h3>
+<p>Con <code>ROLES_GESTIONAR</code>, cree o edite nombre (3–60), descripción, estado y permisos. Los permisos disponibles son los siete códigos documentados en <a href="api-contracts.md">Contratos API</a>. Guardar un cambio revoca sesiones de usuarios afectados para que la autorización no quede obsoleta.</p>
+<p>El rol administrador protegido no puede perder <code>USUARIOS_GESTIONAR</code> ni <code>ROLES_GESTIONAR</code>, ni desactivarse. El aprovisionamiento bootstrap excluye <code>VENTAS_CREAR</code>: el nombre <code>Administrador</code> no permite vender por sí solo y esa capacidad debe asignarse explícitamente mediante otro rol.</p>
+<h3>Perfil</h3>
+<p><code>/perfil</code> presenta datos propios, roles y permisos efectivos, junto con el selector de apariencia. Es informativo: un permiso que no aparece no se obtiene editando la página. Use <strong>Cambiar contraseña</strong> para ir a Seguridad.</p>
+<h3>Formularios, tablas y accesibilidad</h3>
+<ul><li>Use <code>Tab</code>/<code>Shift+Tab</code> para avanzar/retroceder, <code>Enter</code> o <code>Espacio</code> para activar controles y <code>Escape</code> para cerrar un diálogo cuando esté disponible.</li><li>El foco visible indica dónde actuará el teclado. Al abrir/cerrar un diálogo debe moverse y regresar de forma controlada.</li><li>Los errores señalan el campo y conservan datos no sensibles. Contraseñas/tokens pueden limpiarse por seguridad.</li><li>Antes de salir con cambios operativos sin guardar, lea el aviso y elija permanecer o salir. Cambiar solo el tema no cuenta como cambio del negocio.</li><li>En tablas anchas use el desplazamiento interno. A 200 % o en móvil, la navegación cambia a menú y los paneles se apilan.</li></ul>
+<h3>Resolución rápida de problemas</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Mensaje/síntoma</th><th>Acción segura</th>
+</tr></thead><tbody>
+<tr><td>«Tu sesión terminó»</td><td>Vuelva a <code>/acceso</code>; no reutilice formularios privados de la sesión anterior.</td></tr>
+<tr><td>«No tienes permiso»</td><td>Confirme la cuenta/rol con un administrador; no altere la URL.</td></tr>
+<tr><td>«La información cambió»</td><td>Recargue el registro, compare y vuelva a aplicar el cambio.</td></tr>
+<tr><td>«No hay existencias suficientes»</td><td>Reduzca cantidad o solicite un ajuste autorizado; vuelva a cotizar.</td></tr>
+<tr><td>«No se pudo conectar con el servicio»</td><td>Compruebe API/SQL; no interprete el fallo como operación confirmada.</td></tr>
+<tr><td>«Resultado desconocido» en venta</td><td>Mantenga la misma clave y use <strong>Consultar resultado</strong> o <strong>Mis ventas</strong>.</td></tr>
+<tr><td>Tema aplicado pero no guardado</td><td>Continúe si lo desea y use <strong>Reintentar</strong> cuando la API regrese.</td></tr>
+<tr><td>Página no encontrada</td><td>Seleccione <strong>Ir al inicio</strong> y use la navegación disponible.</td></tr>
+</tbody></table></div>
+<p>Las conductas descritas son el contrato y la guía operativa esperados, no un acta de ejecución. Autenticación, ventas, permisos, visuales, teclado, concurrencia, continuidad y operación offline solo se declaran observados después de ejecutar la PA correspondiente y adjuntar evidencia. PA01–PA32 permanecen <strong>Pendiente</strong>.</p></section>
+<section class="document-section" data-source="backup-restore.md"><h2>Respaldo y restauración</h2>
+<h3>Objetivos y límites</h3>
+<ul><li>Objetivo de pérdida máxima (RPO): <strong>24 horas</strong>.</li><li>Objetivo de recuperación (RTO): <strong>60 minutos</strong>.</li><li>Copia completa diaria y copia adicional inmediatamente antes de cada migración.</li><li>Conservar al menos siete copias válidas protegidas y una copia verificada en otro medio.</li><li>Restaurar siempre primero con otro nombre de base. Ningún procedimiento de esta guía sobrescribe automáticamente <code>SecureFinanceERP</code>.</li></ul>
+<p>Estos valores son objetivos QC07, no resultados medidos. Solo una restauración cronometrada y documentada permite informar cumplimiento.</p>
+<h3>Responsabilidades</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Rol operativo</th><th>Responsabilidad</th>
+</tr></thead><tbody>
+<tr><td>Administrador SQL</td><td>Ejecutar/verificar <code>BACKUP</code>, controlar restauraciones y permisos.</td></tr>
+<tr><td>Administrador del equipo</td><td>Programar la tarea, proteger carpetas/medio y vigilar capacidad.</td></tr>
+<tr><td>Responsable de pruebas</td><td>Restaurar en base aislada, verificar invariantes y registrar evidencia.</td></tr>
+<tr><td>Usuario de API</td><td>Ninguna: la cuenta de aplicación no recibe permisos <code>BACKUP</code>, <code>RESTORE</code> ni acceso a archivos de copia.</td></tr>
+</tbody></table></div>
+<h3>Ubicaciones y seguridad</h3>
+<p>Use una carpeta dedicada, por ejemplo <code>C:\SecureFinanceBackups</code>, que no esté dentro del repositorio, <code>apps/web/dist</code> ni el buzón de recuperación. La cuenta del servicio de SQL Server necesita escritura en el destino primario; los usuarios ordinarios y la cuenta de la API no.</p>
+<p>Los nombres recomendados son únicos y UTC:</p>
+<pre data-language="text"><code>SecureFinanceERP_FULL_20260923T030000Z.bak
+SecureFinanceERP_PREMIG_20260923T151500Z.bak</code></pre>
+<p>No incluya servidor, usuario, contraseña o datos personales en el nombre. Proteja el segundo medio con cifrado del volumen y control de acceso. Si se usa cifrado nativo de backup, custodie certificado y clave privada por separado; una copia sin su material criptográfico no es restaurable.</p>
+<h3>Copia completa manual</h3>
+<p>Antes de ejecutar:</p>
+<ol><li>confirme instancia y nombre exacto de la base;</li><li>confirme que la ruta pertenece a la carpeta prevista y tiene espacio suficiente;</li><li>cree un nombre nuevo; no reutilice ni trunque una copia válida;</li><li>registre inicio UTC, operador, edición/build de SQL Server y motivo (<code>DAILY</code> o <code>PRE_MIGRATION</code>).</li></ol>
+<p>Ejecute con una cuenta administrativa en SSMS o <code>sqlcmd</code>, sustituyendo únicamente la ruta por un nombre nuevo:</p>
+<pre data-language="sql"><code>USE master;
+GO
+DECLARE @Archivo nvarchar(260) =
+    N'C:\SecureFinanceBackups\SecureFinanceERP_FULL_20260923T030000Z.bak';
+
+BACKUP DATABASE [SecureFinanceERP]
+TO DISK = @Archivo
+WITH COPY_ONLY, CHECKSUM, STATS = 5;
+GO</code></pre>
+<p><code>COPY_ONLY</code> evita alterar una estrategia diferencial futura. Puede añadirse <code>COMPRESSION</code> solo después de confirmar que la edición/entorno lo admite y de medir CPU/espacio. No use <code>INIT</code> sobre una ruta existente.</p>
+<p>En PowerShell, una ejecución con autenticación integrada puede invocar un archivo operativo externo al repositorio:</p>
+<pre data-language="powershell"><code>$sfSqlInstance = '.\SQLEXPRESS'
+$sfBackupScript = 'C:\SecureFinanceOps\Backup-SecureFinance.sql'
+sqlcmd -S $sfSqlInstance -E -b -i $sfBackupScript
+if ($LASTEXITCODE -ne 0) { throw 'El respaldo de SecureFinance falló.' }</code></pre>
+<p>No coloque credenciales en la línea de comandos ni dentro de la tarea programada. Si no se usa autenticación integrada, recurra al almacén de secretos autorizado del equipo.</p>
+<h3>Verificación inmediata</h3>
+<p>Que exista un <code>.bak</code> no demuestra que sea utilizable. Ejecute sobre el archivo recién creado:</p>
+<pre data-language="sql"><code>RESTORE VERIFYONLY
+FROM DISK = N'C:\SecureFinanceBackups\SecureFinanceERP_FULL_20260923T030000Z.bak'
+WITH CHECKSUM;
+GO
+
+RESTORE HEADERONLY
+FROM DISK = N'C:\SecureFinanceBackups\SecureFinanceERP_FULL_20260923T030000Z.bak';
+GO</code></pre>
+<p>Registre el resultado, tamaño y un hash SHA-256 calculado después de cerrar el archivo:</p>
+<pre data-language="powershell"><code>Get-FileHash -Algorithm SHA256 -LiteralPath 'C:\SecureFinanceBackups\SecureFinanceERP_FULL_20260923T030000Z.bak'</code></pre>
+<p><code>VERIFYONLY</code> comprueba legibilidad/estructura del conjunto, pero no reemplaza una restauración ni <code>DBCC CHECKDB</code>.</p>
+<h3>Programación diaria en Windows</h3>
+<p>SQL Server Express no incluye SQL Server Agent. Por tanto, la política no depende de Agent:</p>
+<ol><li>guarde un script operativo revisado en <code>C:\SecureFinanceOps</code> con ACL restringida;</li><li>cree una cuenta de servicio local con solo los derechos necesarios para iniciar la tarea y conectarse como operador de backup;</li><li>en <strong>Programador de tareas</strong>, cree una tarea diaria fuera del horario de mayor uso;</li><li>configure <strong>Ejecutar tanto si el usuario inició sesión como si no</strong>, sin almacenar una contraseña en el script;</li><li>acción: <code>powershell.exe -NoProfile -NonInteractive -ExecutionPolicy AllSigned -File C:\SecureFinanceOps\Invoke-SecureFinanceBackup.ps1</code>;</li><li>haga que el script termine con código distinto de cero ante fallo de <code>BACKUP</code>, <code>VERIFYONLY</code>, copia secundaria o hash;</li><li>supervise historial/último resultado y genere una alerta local; una tarea «ejecutada» sin verificar el <code>.bak</code> cuenta como fallo.</li></ol>
+<p>Si la edición instalada sí dispone de Agent, puede usarse un job equivalente, pero documente cuál mecanismo quedó activo. Nunca programe ambos sin coordinación porque competirían por I/O y retención.</p>
+<h3>Retención y segundo medio</h3>
+<ul><li>Conserve como mínimo las últimas siete copias diarias verificadas.</li><li>Las copias previas a migración se conservan hasta validar la migración y completar la siguiente restauración periódica.</li><li>Copie al segundo medio solo después de <code>VERIFYONLY</code>; vuelva a calcular SHA-256 en el destino y compare.</li><li>No cuente una unidad mapeada que vive en el mismo disco físico como segundo medio.</li><li>Antes de eliminar una copia, resuelva su ruta absoluta, confirme que está dentro de la carpeta exclusiva y que quedan siete copias válidas más la secundaria. Prefiera cuarentena/papelera antes de borrado definitivo.</li><li>Registre creación, verificación, traslado y retiro en un manifiesto sin secretos.</li></ul>
+<h3>Restauración aislada</h3>
+<h4>1. Preparación</h4>
+<ol><li>declare incidente o ejercicio, inicio UTC y operador;</li><li>seleccione la última copia válida de acuerdo con manifiesto/hash;</li><li>reserve un nombre nuevo, por ejemplo <code>SecureFinanceERP_Restore_20260923</code>;</li><li>confirme que <code>DB_ID(N'SecureFinanceERP_Restore_20260923') IS NULL</code>;</li><li>no cambie <code>DB_NAME</code> de la API y no permita que usuarios normales entren a la base restaurada;</li><li>identifique nombres lógicos, sin adivinarlos:</li></ol>
+<pre data-language="sql"><code>RESTORE FILELISTONLY
+FROM DISK = N'C:\SecureFinanceBackups\SecureFinanceERP_FULL_20260923T030000Z.bak';
+GO</code></pre>
+<h4>2. Restaurar con otro nombre</h4>
+<p>Sustituya <code>SecureFinanceERP</code>/<code>SecureFinanceERP_log</code> por los nombres lógicos devueltos y use rutas de datos autorizadas para la instancia:</p>
+<pre data-language="sql"><code>USE master;
+GO
+IF DB_ID(N'SecureFinanceERP_Restore_20260923') IS NOT NULL
+    THROW 51006, N'La base de destino ya existe; elija otro nombre.', 1;
+GO
+
+RESTORE DATABASE [SecureFinanceERP_Restore_20260923]
+FROM DISK = N'C:\SecureFinanceBackups\SecureFinanceERP_FULL_20260923T030000Z.bak'
+WITH
+    MOVE N'SecureFinanceERP' TO N'C:\SecureFinanceRestore\SecureFinanceERP_Restore_20260923.mdf',
+    MOVE N'SecureFinanceERP_log' TO N'C:\SecureFinanceRestore\SecureFinanceERP_Restore_20260923_log.ldf',
+    CHECKSUM,
+    RECOVERY,
+    STATS = 5;
+GO</code></pre>
+<p>No añada <code>WITH REPLACE</code>; no restaure encima de producción durante una prueba. Si hay más archivos en <code>FILELISTONLY</code>, proporcione un <code>MOVE</code> único para cada uno.</p>
+<h4>3. Invalidar credenciales recuperadas</h4>
+<p>Una copia puede contener sesiones y tokens que eran válidos cuando se creó. Antes de conectar una API de verificación, ejecute dentro de la base restaurada:</p>
+<pre data-language="sql"><code>USE [SecureFinanceERP_Restore_20260923];
+GO
+BEGIN TRANSACTION;
+    UPDATE dbo.Sesion
+       SET RevocadaUtc = COALESCE(RevocadaUtc, SYSUTCDATETIME());
+
+    UPDATE dbo.TokenRecuperacion
+       SET RevocadoUtc = COALESCE(RevocadoUtc, SYSUTCDATETIME())
+     WHERE UsadoUtc IS NULL;
+COMMIT TRANSACTION;
+GO</code></pre>
+<p>Esto forma parte del ejercicio de recuperación y debe constar en el acta. No crea ni publica una contraseña de administrador.</p>
+<h4>4. Integridad técnica</h4>
+<pre data-language="sql"><code>DBCC CHECKDB (N'SecureFinanceERP_Restore_20260923') WITH NO_INFOMSGS, ALL_ERRORMSGS;
+GO</code></pre>
+<p>Confirme también nivel de compatibilidad, objetos esperados y que la base está <code>ONLINE</code>. Un <code>CHECKDB</code> sin mensajes no demuestra por sí solo la coherencia funcional.</p>
+<h4>5. Verificación funcional mínima</h4>
+<p>En la base restaurada y con datos sintéticos conocidos, registre conteos y muestras sin copiar secretos:</p>
+<pre data-language="sql"><code>USE [SecureFinanceERP_Restore_20260923];
+GO
+SELECT COUNT_BIG(*) AS Usuarios FROM dbo.Usuario;
+SELECT COUNT_BIG(*) AS Facturas FROM dbo.Factura;
+SELECT COUNT_BIG(*) AS Detalles FROM dbo.Detalle_Factura;
+
+SELECT f.FacturaId, f.Numero, f.Subtotal, f.IVA, f.Total,
+       COUNT_BIG(d.DetalleFacturaId) AS Lineas,
+       COUNT_BIG(mc.MovimientoCajaId) AS MovimientosCaja
+FROM dbo.Factura AS f
+LEFT JOIN dbo.Detalle_Factura AS d ON d.FacturaId = f.FacturaId
+LEFT JOIN dbo.MovimientoCaja AS mc ON mc.FacturaId = f.FacturaId
+WHERE f.FacturaId = @FacturaPruebaId
+GROUP BY f.FacturaId, f.Numero, f.Subtotal, f.IVA, f.Total;
+
+SELECT ProductoId, Codigo, Stock
+FROM dbo.Producto
+WHERE ProductoId = @ProductoPruebaId;
+GO</code></pre>
+<p>Además verifique que:</p>
+<ul><li>las cuentas de prueba esperadas existen y sus roles concuerdan;</li><li>la factura elegida conserva encabezado y líneas históricas;</li><li>tiene exactamente un movimiento de caja por el total esperado;</li><li>el stock del producto concuerda con la venta/ajustes registrados;</li><li>no existe stock negativo;</li><li>todos los objetos/SP requeridos están presentes;</li><li>sesiones y tokens no usados quedaron revocados.</li></ul>
+<p>No inicie sesión con contraseñas tomadas de consultas ni extraiga <code>PasswordHash</code>, <code>PasswordSalt</code>, <code>SesionHash</code> o <code>TokenHash</code> como evidencia.</p>
+<h3>Medición de QC07 / PA31</h3>
+<p>Registre al menos:</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Campo</th><th>Valor de la corrida</th>
+</tr></thead><tbody>
+<tr><td>ID de ejercicio</td><td>—</td></tr>
+<tr><td>Estado</td><td>Pendiente</td></tr>
+<tr><td>Inicio de incidente/restauración UTC</td><td>—</td></tr>
+<tr><td>Hora del último backup válido UTC</td><td>—</td></tr>
+<tr><td>Fin de recuperación/verificación UTC</td><td>—</td></tr>
+<tr><td>Pérdida calculada</td><td>—</td></tr>
+<tr><td>Duración calculada</td><td>—</td></tr>
+<tr><td>Archivo y SHA-256</td><td>—</td></tr>
+<tr><td>Base de destino</td><td>—</td></tr>
+<tr><td><code>VERIFYONLY</code> / <code>CHECKDB</code></td><td>—</td></tr>
+<tr><td>Factura/producto sintético verificado</td><td>—</td></tr>
+<tr><td>Sesiones/tokens invalidados</td><td>—</td></tr>
+<tr><td>Evidencia</td><td>—</td></tr>
+<tr><td>Responsable/incidencia</td><td>—</td></tr>
+</tbody></table></div>
+<p>La pérdida se calcula entre el último dato confirmado que debía recuperarse y el punto real del backup; la duración va desde la declaración del ejercicio hasta que las verificaciones acordadas terminan. No reste tiempos manualmente para mejorar el resultado.</p>
+<h3>Promoción tras un incidente real</h3>
+<p>La decisión de sustituir una base dañada es administrativa y queda fuera de una restauración de prueba. Requiere autorización, ventana de mantenimiento, detener escrituras, preservar la base/archivos originales, confirmar cadenas de conexión, plan de reversión y comunicación a usuarios. Esta guía no autoriza <code>DROP DATABASE</code>, <code>WITH REPLACE</code> ni cambios automáticos de la API hacia una copia restaurada.</p>
+<h3>Lista de comprobación</h3>
+<ul><li>[ ] Copia completa diaria con nombre único.</li><li>[ ] Copia previa a migración.</li><li>[ ] <code>CHECKSUM</code>, <code>VERIFYONLY</code>, tamaño y SHA-256 registrados.</li><li>[ ] Al menos siete copias protegidas.</li><li>[ ] Copia verificada en otro medio.</li><li>[ ] Tarea supervisada y fallo visible.</li><li>[ ] Restauración periódica con otro nombre.</li><li>[ ] <code>DBCC CHECKDB</code> y verificación funcional.</li><li>[ ] Sesiones/tokens restaurados revocados.</li><li>[ ] RPO/RTO medidos, no inferidos.</li><li>[ ] Evidencia sin secretos enlazada a PA31/QC07.</li></ul>
+<p>El estado inicial de PA31 y QC07 es <strong>Pendiente</strong>.</p></section>
+<section class="document-section" data-source="test-matrix.md"><h2>Matriz de pruebas PA01–PA32</h2>
+<h3>Regla de estado</h3>
+<p>Todas las pruebas se inicializan en <strong>Pendiente</strong>. Solo una ejecución observable puede cambiar el estado:</p>
+<ul><li><strong>Pendiente:</strong> todavía no ejecutada.</li><li><strong>En ejecución:</strong> existe una corrida abierta.</li><li><strong>Aprobada:</strong> resultado observado coincide con todos los resultados esperados y la evidencia está enlazada.</li><li><strong>Fallida:</strong> uno o más resultados no coinciden; debe existir incidencia.</li><li><strong>Bloqueada:</strong> no puede ejecutarse por una causa externa concreta, por ejemplo SQL Server o navegador ausente. Un mock no desbloquea pruebas de ACID, TVP, concurrencia o restauración.</li></ul>
+<p>La lectura del código, una compilación correcta o una prueba parcial no autorizan a marcar una PA como Aprobada.</p>
+<p>En esta revisión no existe <code>docs/evidence/manifest.csv</code>; por ello ninguna PA tiene evidencia oficial enlazada y PA01–PA32 continúan <strong>Pendiente</strong>.</p>
+<h3>Definiciones</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>ID</th><th>UC</th><th>Escenario</th><th>Resultado esperado</th><th>Estado inicial</th>
+</tr></thead><tbody>
+<tr><td>PA01</td><td>UC01, UC04</td><td>Probar acceso con credenciales válidas, inválidas y una cuenta inactiva.</td><td>Solo la cuenta habilitada obtiene sesión. Los rechazos usan respuesta pública genérica y la bitácora registra el motivo interno sin secretos.</td><td>Pendiente</td></tr>
+<tr><td>PA02</td><td>UC02</td><td>Cambiar la contraseña de una cuenta, comparar el salt y probar la contraseña anterior y la nueva.</td><td>Cambia el salt; la contraseña anterior falla; la nueva funciona; las sesiones y tokens anteriores quedan revocados.</td><td>Pendiente</td></tr>
+<tr><td>PA03</td><td>UC05</td><td>Probar token de recuperación vencido, consumido y dos restablecimientos simultáneos con el mismo token.</td><td>Un token vencido o usado falla. En la carrera concurrente solo un restablecimiento consume el token y tiene éxito.</td><td>Pendiente</td></tr>
+<tr><td>PA04</td><td>UC04, UC06, UC07</td><td>Como Cajero, manipular interfaz y llamar directamente endpoints de auditoría y roles.</td><td>La UI no ofrece las acciones y la API/SQL rechazan auditoría y roles; alterar el cliente nunca concede permiso.</td><td>Pendiente</td></tr>
+<tr><td>PA05</td><td>UC03</td><td>Procesar una venta correcta y verificar factura, detalle, stock, caja e IVA con subtotal <code>100.00</code>.</td><td>Todos los efectos concuerdan en una sola venta; IVA <code>12.00</code>, total <code>112.00</code>; no hay efectos omitidos o duplicados.</td><td>Pendiente</td></tr>
+<tr><td>PA06</td><td>UC03</td><td>Inyectar una falla después de crear el encabezado de factura.</td><td>No quedan factura parcial, detalle, movimiento de caja ni descuento de stock. El incidente técnico se registra después del rollback y por separado.</td><td>Pendiente</td></tr>
+<tr><td>PA07</td><td>UC03</td><td>Con stock igual a uno, enviar dos ventas simultáneas por la última unidad.</td><td>Solo una venta se confirma; la otra recibe conflicto de stock; el stock final es cero, nunca negativo.</td><td>Pendiente</td></tr>
+<tr><td>PA08</td><td>UC03</td><td>Enviar dos veces la misma venta y simular pérdida de la primera respuesta usando la misma clave y contenido.</td><td>La misma clave y contenido devuelve la misma factura; existe una factura y un movimiento de caja.</td><td>Pendiente</td></tr>
+<tr><td>PA09</td><td>UC03, UC08</td><td>Actualizar varios productos en una sentencia y provocar también un rollback.</td><td>El trigger audita cada fila cambiada. La transacción revertida no conserva auditoría DML de cambios que no persistieron.</td><td>Pendiente</td></tr>
+<tr><td>PA10</td><td>UC03</td><td>Enviar cantidades negativas, identificadores ajenos, precios alterados e intentos de inyección.</td><td>Los valores inválidos se rechazan; el texto de inyección se trata como dato; precios, impuestos, stock e identidad se obtienen de fuentes autorizadas.</td><td>Pendiente</td></tr>
+<tr><td>PA11</td><td>UC07, UC11, UC12</td><td>Cerrar sesión, dejarla vencer, revocarla, desactivar usuario y retirar permisos durante una sesión.</td><td>Cookies cerradas/vencidas fallan; desactivar, revocar o cambiar permisos surte efecto en la siguiente operación protegida.</td><td>Pendiente</td></tr>
+<tr><td>PA12</td><td>UC04, UC10</td><td>Comparar reportes con ventas confirmadas e intentar editar auditoría con la cuenta SQL de API.</td><td>El reporte contiene únicamente ventas confirmadas; la cuenta API no puede editar bitácoras; ninguna bitácora contiene secretos.</td><td>Pendiente</td></tr>
+<tr><td>PA13</td><td>UC13</td><td>Recorrer toda la interfaz en Claro y Oscuro y cambiar tema con formularios/diálogos abiertos.</td><td>Ambos temas cubren toda la UI; el cambio no recarga, cierra diálogos ni borra formularios, filtros o venta en edición.</td><td>Pendiente</td></tr>
+<tr><td>PA14</td><td>UC13</td><td>Seleccionar Sistema y cambiar <code>prefers-color-scheme</code>; repetir con Claro y Oscuro explícitos.</td><td>Solo Sistema sigue al sistema operativo. Claro y Oscuro permanecen fijos. Si no se detecta preferencia, Sistema resuelve a Claro.</td><td>Pendiente</td></tr>
+<tr><td>PA15</td><td>UC13</td><td>Guardar Oscuro en cuenta A, Claro en B, alternar cuentas y cerrar sesión.</td><td>Cada cuenta recupera su preferencia sin mezclarla; al salir se restaura la preferencia anónima de acceso.</td><td>Pendiente</td></tr>
+<tr><td>PA16</td><td>UC13</td><td>Forzar fallo al guardar apariencia, continuar usando la sesión y luego reintentar.</td><td>El tema se aplica en memoria; aparece «Aplicado en esta sesión; no se pudo guardar»; el reintento persiste y no afecta otras operaciones.</td><td>Pendiente</td></tr>
+<tr><td>PA17</td><td>UC13</td><td>Hacer cambios rápidos de tema, probar navegador sin almacenamiento y sincronizar otra pestaña al recuperar foco.</td><td>Se conserva la última selección; sin almacenamiento local la sesión opera; otra pestaña actualiza al foco salvo que tenga un cambio local pendiente.</td><td>Pendiente</td></tr>
+<tr><td>PA18</td><td>UC06, UC14</td><td>Iniciar como Cajero, probar métricas, URL/API prohibida, volver, recargar y alternar cuenta.</td><td>Cajero no ve métricas globales; URL y API prohibidas fallan; volver/recargar no revela datos de otra cuenta.</td><td>Pendiente</td></tr>
+<tr><td>PA19</td><td>UC14</td><td>Probar Inicio durante carga, con cero datos, con una fuente fallida y al actualizar.</td><td>Carga, cero válido y fallo son distintos; hora/datos se actualizan; una tarjeta fallida no bloquea las demás.</td><td>Pendiente</td></tr>
+<tr><td>PA20</td><td>UC01–UC12 interactivos</td><td>Provocar validación y tratar de salir con cambios sin guardar; cambiar tema durante la edición.</td><td>El error identifica el campo y conserva valores no sensibles; el aviso permite permanecer; cambiar tema no avisa ni borra datos.</td><td>Pendiente</td></tr>
+<tr><td>PA21</td><td>Listados</td><td>Probar búsqueda, filtros, páginas 10/25/50, orden estable, totales y estados vacío/fallo.</td><td>Filtrar vuelve a página uno; el orden es estable; el total cubre todo el filtro; «sin registros», «sin coincidencias» y fallo de servicio no se confunden.</td><td>Pendiente</td></tr>
+<tr><td>PA22</td><td>UC03</td><td>Provocar doble envío y pérdida/fallo de respuesta durante una venta.</td><td>El borrador queda pendiente con la misma clave; se resuelve en una sola factura; no se habilita nueva clave mientras el resultado sea incierto.</td><td>Pendiente</td></tr>
+<tr><td>PA23</td><td>UC06, UC12, UC14</td><td>Vencer sesión, abrir ruta inexistente/prohibida y probar una cuenta sin roles.</td><td>Vencimiento limpia datos sensibles; ruta inexistente ofrece volver a Inicio; ruta prohibida rechaza; sin roles conserva solo funciones personales.</td><td>Pendiente</td></tr>
+<tr><td>PA24</td><td>Todos</td><td>Operar acceso y venta solo con teclado, revisar foco/etiquetas/contraste, zoom 200 % y anchos 320/768/1280 en ambos temas.</td><td>Las acciones esenciales son operables, el foco es visible y controlado, hay nombres accesibles, el contraste cumple y el contenido general no desborda.</td><td>Pendiente</td></tr>
+<tr><td>PA25</td><td>UC03, UC10</td><td>Consultar e imprimir comprobantes como Cajero y como usuario con <code>REPORTES_LEER</code>, desde tema Oscuro.</td><td>Cajero solo accede a facturas propias; <code>REPORTES_LEER</code> accede a todas; la impresión es clara sobre fondo blanco y no crea otra venta.</td><td>Pendiente</td></tr>
+<tr><td>PA26</td><td>Todos</td><td>Desconectar Internet después de instalar; detener API o base durante una operación.</td><td>El sistema local funciona sin Internet. Una caída de API/BD se informa como fallo y nunca confirma una operación ni presenta cero válido.</td><td>Pendiente</td></tr>
+<tr><td>PA27</td><td>Transversal</td><td>Probar mínimos/máximos, un valor por encima, campos inesperados y versiones obsoletas en ediciones concurrentes.</td><td>Los límites se aplican sin truncado; campos extra se rechazan; no hay duplicados ni sobrescritura silenciosa; una versión obsoleta devuelve conflicto.</td><td>Pendiente</td></tr>
+<tr><td>PA28</td><td>UC03, UC08, UC10</td><td>Vender, cambiar cliente/producto/precio, reimprimir y probar subtotal <code>0.05</code>.</td><td>El comprobante histórico permanece idéntico; IVA <code>0.01</code>, total <code>0.06</code>; los cambios de catálogo no reescriben la venta.</td><td>Pendiente</td></tr>
+<tr><td>PA29</td><td>UC01, UC04, UC06; transversal</td><td>Alternar cuentas sobre conexiones reutilizadas, enviar otro <code>UsuarioId</code> e inspeccionar auditoría y permisos.</td><td>Identidad, permisos y auditoría proceden de la sesión; el identificador del navegador y un contexto residual del pool no cambian el actor.</td><td>Pendiente</td></tr>
+<tr><td>PA30</td><td>UC03, UC10; QC01, QC02</td><td>Ejecutar carga con el dataset prescrito, cinco sesiones y registrar equipo, errores, máximos y percentiles.</td><td>Las mediciones válidas producen percentiles reproducibles sin errores, pérdida de integridad ni afirmaciones sin acta.</td><td>Pendiente</td></tr>
+<tr><td>PA31</td><td>QC07</td><td>Restaurar la última copia válida en otra base y verificar cuentas, factura, detalle, stock y caja.</td><td>La base restaurada es íntegra; se registran pérdida y duración frente a RPO 24 h/RTO 60 min; sesiones y tokens recuperados se invalidan.</td><td>Pendiente</td></tr>
+<tr><td>PA32</td><td>QC06</td><td>En una copia limpia, preparar SQL, instalar con lockfile, compilar, iniciar y reiniciar sin Internet.</td><td>El arranque es reproducible; el reinicio conserva facturas y configuración; el runtime funciona offline con API y SQL activos.</td><td>Pendiente</td></tr>
+</tbody></table></div>
+<h3>Preparación pendiente para ejecutar la matriz</h3>
+<p>Estos huecos del paquete no cambian automáticamente el estado a <code>Bloqueada</code>; identifican trabajo previo para poder abrir una corrida válida.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Alcance</th><th>Herramienta existente</th><th>Hueco que debe resolverse o cubrirse manualmente</th>
+</tr></thead><tbody>
+<tr><td>PA01–PA05, PA08, PA10–PA12, PA18–PA23, PA25, PA27–PA29</td><td>Aplicación, API, scripts SQL y semilla pequeña <code>_Test</code></td><td>Preparar datos/roles exclusivos, coordinador de casos, capturas y consultas posteriores; registrar revisión y entorno.</td></tr>
+<tr><td>PA03, PA07, PA08, PA22, PA29</td><td>Casos SQL parciales y endpoints funcionales</td><td>Hace falta coordinación simultánea real. Llamadas secuenciales o mocks no acreditan una carrera ni reutilización del pool.</td></tr>
+<tr><td>PA06 y rollback por etapa de QC03</td><td><code>database/tests/04_sale-rollback-fault.sql</code> crea un trigger temporal dentro de la transacción en una base <code>_Test</code> y verifica el punto posterior al encabezado</td><td>Añadir otros puntos de fallo si el protocolo exige cobertura por etapa y conservar salida/entorno en el manifiesto; la cuenta API no puede activar este mecanismo.</td></tr>
+<tr><td>PA09</td><td>Triggers por conjuntos</td><td>Preparar DML administrativo multirregistro y una transacción revertida; verificar una fila de auditoría por registro y ausencia tras rollback.</td></tr>
+<tr><td>PA13–PA17 y PA24</td><td>Vitest/RTL, Playwright público en 18 combinaciones y recorrido privado real de 14 vistas con Axe/capturas</td><td>Ejecutar todavía teclado, zoom 200 %, diálogos/formularios durante cambio de tema, preferencia Sistema y estados de fallo; la suite actual es parcial.</td></tr>
+<tr><td>PA30 / QC01–QC02</td><td>Plan de medición</td><td>No hay generador del dataset prescrito ni arnés de cinco sesiones/percentiles. La semilla demo no cumple el volumen.</td></tr>
+<tr><td>PA31 / QC07</td><td>Scripts de backup, verificación y restauración</td><td>Ejecutar restauración aislada, cronometrar RPO/RTO y conservar manifiesto/hash/validaciones; <code>VERIFYONLY</code> solo no basta.</td></tr>
+<tr><td>PA32 / QC06</td><td>Instalador, lockfile, build/start</td><td>Ejecutar desde copia limpia y repetir sin Internet después de obtener dependencias; una compilación en el workspace actual no acredita reproducibilidad.</td></tr>
+</tbody></table></div>
+<h3>Registro de ejecución</h3>
+<p>Cada fila debe completarse durante una ejecución real. <code>Evidencia</code> utiliza rutas relativas conforme a <a href="evidence-guide.md">Guía de evidencia</a>. No se registran contraseñas, tokens, cookies, hashes, salts ni cadenas de conexión.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>ID</th><th>Estado</th><th>Fecha/hora UTC</th><th>Entorno y versiones</th><th>Datos/precondiciones</th><th>Resultado observado</th><th>Evidencia</th><th>Ejecutor</th><th>Incidencia/bloqueo</th>
+</tr></thead><tbody>
+<tr><td>PA01</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA02</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA03</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA04</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA05</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA06</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA07</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA08</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA09</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA10</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA11</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA12</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA13</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA14</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA15</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA16</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA17</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA18</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA19</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA20</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA21</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA22</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA23</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA24</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA25</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA26</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA27</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA28</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA29</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA30</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA31</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>PA32</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody></table></div>
+<h3>Datos y mecanismos especiales</h3>
+<ul><li>PA03, PA07, PA08, PA22 y PA29 requieren coordinación concurrente real, no llamadas secuenciales presentadas como carrera.</li><li>PA05–PA09 y PA22 usan SQL Server real y verificaciones posteriores desde un canal administrativo de solo prueba.</li><li>PA06 y PA09 usan inyección de fallos aislada, imposible de activar desde la cuenta o servicio normal.</li><li>PA24 registra tema, viewport, zoom, navegador, entrada utilizada y violación concreta, no solo una captura visual.</li><li>PA30 sigue las condiciones de <a href="quality-plan.md">Plan QC</a>.</li><li>PA31 restaura siempre en otra base; nunca reemplaza automáticamente la base existente.</li></ul></section>
+<section class="document-section" data-source="quality-plan.md"><h2>Plan de calidad QC01–QC08</h2>
+<p>Este documento define cómo medir los objetivos. No contiene resultados y un objetivo escrito no implica que exista el arnés para medirlo. Hasta completar una corrida válida con manifiesto, todos los QC permanecen <strong>Pendiente</strong>.</p>
+<h3>Entorno obligatorio</h3>
+<ul><li>Base exclusiva de pruebas con Microsoft SQL Server real.</li><li>API y navegador en el mismo equipo, por loopback.</li><li>Cinco sesiones representan cinco clientes de prueba concurrentes en el mismo equipo.</li><li>Equipo de referencia: al menos 16 GB de RAM y SSD, sin cargas intensivas durante la medición. No es un mínimo funcional del producto.</li><li>Registrar CPU, RAM, almacenamiento, sistema operativo, navegador, Node, pnpm, SQL Server/edición/build y configuración relevante de base/pool.</li><li>Dependencias fijadas por <code>pnpm-lock.yaml</code>; reloj estable y plan de energía documentado.</li></ul>
+<h3>Dataset prescrito</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Conjunto</th><th>Cantidad</th>
+</tr></thead><tbody>
+<tr><td>Clientes</td><td>1,000</td></tr>
+<tr><td>Productos</td><td>10,000</td></tr>
+<tr><td>Facturas</td><td>50,000</td></tr>
+<tr><td>Líneas de factura</td><td>250,000</td></tr>
+</tbody></table></div>
+<p>Los datos son sintéticos e identificados como prueba. La semilla/generador debe ser reproducible y ejecutarse solo por el canal administrativo. No se vuelve a sembrar al iniciar la aplicación.</p>
+<p>El repositorio actual no incluye el generador de este volumen ni el arnés concurrente de cinco sesiones. <code>database/seed-demo.sql</code> solo prepara un cliente y dos productos, por lo que no puede usarse para informar QC01, QC02 o PA30. El generador y el ejecutor de carga deben incorporarse o identificarse en el acta antes de abrir la corrida.</p>
+<h3>Protocolo común de medición</h3>
+<ol><li>Preparar la base exclusiva, comprobar conteos e integridad y registrar el hash/versión del dataset.</li><li>Reiniciar de forma documentada solo los componentes que el protocolo de la corrida indique; no limpiar cachés selectivamente entre muestras.</li><li>Ejecutar <strong>20 operaciones de calentamiento por escenario</strong>. No se incorporan al percentil.</li><li>Ejecutar <strong>al menos 100 mediciones válidas por escenario</strong>.</li><li>Para concurrencia, iniciar las cinco sesiones desde una barrera común y registrar la distribución real de inicios.</li><li>Medir extremo a extremo desde la petición hasta que los datos estén visibles y utilizables, no solo el tiempo SQL.</li><li>Separar rechazos funcionales esperados de errores técnicos. Registrar ambos, además del máximo.</li><li>Ordenar las duraciones válidas y calcular p95 con rango más cercano: posición <code>ceil(0.95 × N)</code>. Con 100 muestras corresponde a la muestra 95 ordenada.</li><li>Conservar datos crudos, resumen, errores y correlaciones. No redondear antes de calcular.</li></ol>
+<p>Un objetivo solo cumple si al menos 95 % de las mediciones válidas está bajo el umbral y no hay errores técnicos o pérdida de integridad que invalide la corrida.</p>
+<h3>Objetivos</h3>
+<h4>QC01 — Consultas y reporte</h4>
+<p><strong>Objetivo:</strong> consultas habituales p95 ≤ 2 s; reporte de hasta 366 días p95 ≤ 5 s.</p>
+<p>Escenarios representativos mínimos:</p>
+<ul><li>productos: primera página, búsqueda selectiva, filtro de estado y orden alternativo;</li><li>clientes: búsqueda y cambio de página;</li><li>ventas propias: lista y comprobante;</li><li>auditoría: categoría y rango cuando el actor tenga permiso;</li><li>reporte de ventas: rango de 366 días con totales del filtro completo.</li></ul>
+<p>La medición termina cuando filas, totales y estado accesible se muestran. Un error, respuesta incompleta o total calculado solo sobre la página invalida la muestra.</p>
+<h4>QC02 — Venta concurrente</h4>
+<p><strong>Objetivo:</strong> venta de hasta 100 líneas p95 ≤ 3 s con cinco sesiones concurrentes.</p>
+<ul><li>Precrear cinco cajeros, clientes y productos con stock suficiente.</li><li>Usar claves UUID diferentes entre ventas y conservar cada clave para reconciliación.</li><li>Incluir el escenario máximo de 100 productos distintos; registrar también tamaños menores como diagnóstico.</li><li>Verificar después de cada lote facturas, líneas, movimientos de caja, movimientos de stock, idempotencia y stock no negativo.</li><li>Si hay una respuesta incierta, resolverla con la misma clave antes de contabilizar la muestra.</li></ul>
+<h4>QC03 — Integridad</h4>
+<p><strong>Objetivo:</strong> cero ventas parciales, duplicadas o con stock negativo.</p>
+<p>Ejecutar PA05–PA09 y PA22, incluyendo última unidad y fallos después de encabezado, detalle, stock, caja y auditoría. Consultas administrativas posteriores deben demostrar:</p>
+<ul><li>toda factura confirmada tiene detalle y exactamente un movimiento de caja;</li><li>no hay clave de idempotencia duplicada por usuario;</li><li>no hay líneas duplicadas por producto dentro de factura;</li><li>ningún stock es negativo;</li><li>un fallo revierte todos sus efectos de negocio;</li><li>la auditoría transaccional describe únicamente cambios persistidos.</li></ul>
+<h4>QC04 — Autorización</h4>
+<p><strong>Objetivo:</strong> cero accesos indebidos en la matriz de permisos.</p>
+<p>Ejecutar PA04, PA18, PA23 y PA25 por UI y por llamada HTTP directa. Probar Administrador sin <code>VENTAS_CREAR</code>, Cajero, Auditor, cuenta sin roles, cuenta inactiva y permiso revocado durante la sesión. Alternar identidades sobre el pool para confirmar aislamiento.</p>
+<h4>QC05 — Usabilidad y accesibilidad</h4>
+<p><strong>Objetivo:</strong> todas las acciones esenciales operables con teclado y ambos temas.</p>
+<p>Ejecutar PA13–PA17 y PA24. Revisar acceso, inicio, nueva venta, comprobante y pantallas administrativas en Claro/Oscuro, 320/768/1280 px y texto al 200 %. Registrar contraste, foco, orden de tabulación, etiquetas, nombre accesible, diálogo, reducción de movimiento y desbordamiento.</p>
+<p>La suite Playwright pública cubre acceso/recuperación/restablecimiento en dos temas y 320/768/1280. La suite privada recorre vistas esenciales de Administrador y Cajero contra API/SQL reales, usa Axe, controla desbordamiento y produce capturas en una base <code>_Test</code>. Aun así, teclado completo, zoom 200 %, edición con diálogos abiertos, cambio de sistema operativo y la matriz total de estados requieren el protocolo manual; esta automatización parcial no aprueba PA24.</p>
+<h4>QC06 — Instalación y operación offline</h4>
+<p><strong>Objetivo:</strong> arranque reproducible y operación sin Internet tras instalar dependencias.</p>
+<p>En una copia limpia: instalar con lockfile congelado, preparar SQL, compilar, iniciar, ejecutar un recorrido esencial, desconectar Internet y repetir. Reiniciar API/SQL/equipo según el acta y comprobar persistencia. Corresponde a PA26 y PA32.</p>
+<h4>QC07 — Continuidad</h4>
+<p><strong>Objetivo:</strong> pérdida máxima de 24 h (RPO) y recuperación en 60 min (RTO).</p>
+<p>Restaurar la última copia válida en una base diferente. Medir desde la declaración del incidente hasta la validación técnica y funcional. Verificar cuentas, factura, detalle, stock, caja, integridad y la invalidación de sesiones/tokens recuperados. Comparar la última transacción recuperada con la última conocida.</p>
+<h4>QC08 — Trazabilidad</h4>
+<p><strong>Objetivo:</strong> cada evento crítico identifica actor, fecha, resultado y operación.</p>
+<p>Cruzar solicitud, respuesta, correlación y bitácora para acceso, cambio/restablecimiento de contraseña, permisos, usuario, rol, producto, inventario, cliente, venta y DDL. Confirmar que no aparecen secretos y que cada fallo interno conserva una referencia diagnóstica autorizada.</p>
+<h3>Acta de corrida</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Campo</th><th>Valor</th>
+</tr></thead><tbody>
+<tr><td>Identificador de corrida</td><td>Pendiente</td></tr>
+<tr><td>Fecha/hora UTC</td><td>Pendiente</td></tr>
+<tr><td>Responsable</td><td>Pendiente</td></tr>
+<tr><td>Commit/paquete entregado</td><td>Pendiente</td></tr>
+<tr><td>CPU / RAM / almacenamiento</td><td>Pendiente</td></tr>
+<tr><td>SO / plan de energía</td><td>Pendiente</td></tr>
+<tr><td>Navegador y versión</td><td>Pendiente</td></tr>
+<tr><td>Node / pnpm</td><td>Pendiente</td></tr>
+<tr><td>SQL Server edición/build/compatibilidad</td><td>Pendiente</td></tr>
+<tr><td>Pool y timeouts</td><td>Pendiente</td></tr>
+<tr><td>Dataset/semilla/conteos</td><td>Pendiente</td></tr>
+<tr><td>Calentamiento</td><td>20 por escenario, aún no ejecutado</td></tr>
+<tr><td>Mediciones válidas requeridas</td><td>≥100 por escenario, aún no ejecutadas</td></tr>
+<tr><td>Errores/rechazos</td><td>Pendiente</td></tr>
+<tr><td>Ruta de datos crudos</td><td>Pendiente</td></tr>
+</tbody></table></div>
+<h3>Registro de resultados</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>QC</th><th>Estado</th><th>N válidas</th><th>N errores</th><th>p95</th><th>Máximo</th><th>Objetivo</th><th>Evidencia/observaciones</th>
+</tr></thead><tbody>
+<tr><td>QC01 consultas</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>≤2 s</td><td>—</td></tr>
+<tr><td>QC01 reporte 366 días</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>≤5 s</td><td>—</td></tr>
+<tr><td>QC02 venta 100 líneas/5 sesiones</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>≤3 s</td><td>—</td></tr>
+<tr><td>QC03 integridad</td><td>Pendiente</td><td>—</td><td>—</td><td>N/A</td><td>N/A</td><td>0 anomalías</td><td>—</td></tr>
+<tr><td>QC04 autorización</td><td>Pendiente</td><td>—</td><td>—</td><td>N/A</td><td>N/A</td><td>0 accesos</td><td>—</td></tr>
+<tr><td>QC05 usabilidad</td><td>Pendiente</td><td>—</td><td>—</td><td>N/A</td><td>N/A</td><td>100 % esenciales</td><td>—</td></tr>
+<tr><td>QC06 reproducibilidad/offline</td><td>Pendiente</td><td>—</td><td>—</td><td>N/A</td><td>N/A</td><td>Sin dependencia Internet</td><td>—</td></tr>
+<tr><td>QC07 continuidad</td><td>Pendiente</td><td>—</td><td>—</td><td>—</td><td>—</td><td>RPO≤24 h; RTO≤60 min</td><td>—</td></tr>
+<tr><td>QC08 trazabilidad</td><td>Pendiente</td><td>—</td><td>—</td><td>N/A</td><td>N/A</td><td>100 % eventos críticos</td><td>—</td></tr>
+</tbody></table></div></section>
+<section class="document-section" data-source="verification-results.md"><h2>Verificación técnica ejecutada</h2>
+<h3>Alcance y advertencia</h3>
+<p>Este registro resume comprobaciones parciales ejecutadas el <strong>24 de septiembre de 2026</strong> sobre el workspace local. No es un manifiesto formal de aceptación, no certifica seguridad ni producción y <strong>no cambia PA01–PA32 ni QC01–QC08 de Pendiente</strong>. El workspace no contiene metadatos Git, por lo que la corrida queda ligada a estos archivos locales y no a un commit identificable.</p>
+<h3>Entorno observado</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Componente</th><th>Valor</th>
+</tr></thead><tbody>
+<tr><td>Sistema operativo</td><td>Windows 11 Home <code>10.0.26200</code>, build <code>26200</code></td></tr>
+<tr><td>PowerShell</td><td><code>5.1.26100.9444</code></td></tr>
+<tr><td>Node.js</td><td><code>v24.18.0</code></td></tr>
+<tr><td>pnpm</td><td><code>10.34.4</code></td></tr>
+<tr><td>SQL Server</td><td><code>17.0.1000.7</code> RTM, Express Edition 64-bit</td></tr>
+<tr><td>Instancia administrativa</td><td><code>.\SQLEXPRESS</code></td></tr>
+<tr><td>Base exclusiva</td><td><code>SecureFinanceERP_Verification_20260923_Test</code></td></tr>
+<tr><td>Navegador automatizado</td><td>Microsoft Edge <code>153.0.4234.48</code></td></tr>
+<tr><td>Origen integrado</td><td><code>http://127.0.0.1:3000</code></td></tr>
+</tbody></table></div>
+<p>No se incluyen contraseñas, cookies, hashes, tokens ni cadenas de conexión.</p>
+<h3>Resultados observados</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Comprobación</th><th>Resultado</th><th>Alcance real</th>
+</tr></thead><tbody>
+<tr><td><code>pnpm install --frozen-lockfile</code></td><td>Aprobó; lockfile vigente</td><td>Reproducibilidad de dependencias en este workspace, con caché/entorno actuales.</td></tr>
+<tr><td><code>pnpm audit --prod</code></td><td>Sin vulnerabilidades conocidas informadas</td><td>Consulta puntual al registro; no es auditoría de código ni garantía futura.</td></tr>
+<tr><td><code>pnpm lint</code></td><td>Aprobó API y web</td><td>Reglas estáticas configuradas.</td></tr>
+<tr><td><code>pnpm test</code></td><td>16 API + 24 web = <strong>40 aprobadas</strong>; 3 SQL condicionales omitidas en esta orden</td><td>Unitarias/aisladas y regresiones de configuración, conexión, seguridad, componentes y formatos.</td></tr>
+<tr><td><code>pnpm build</code></td><td>Aprobó</td><td>Bundle Vite de producción generado.</td></tr>
+<tr><td><code>pnpm sql:verify</code></td><td><code>available</code>, <code>GTQ</code>, <code>America/Guatemala</code></td><td>Conectividad y ejecución de <code>sp_VerificarEstado</code> con el login mínimo de la API.</td></tr>
+<tr><td><code>RUN_SQL_INTEGRATION=true; pnpm test:integration</code></td><td><strong>3 aprobadas</strong></td><td>SP concedido; lectura/escritura directa y SP interno denegados al login API.</td></tr>
+<tr><td><code>database/tests/01_contract.sql</code></td><td><code>ok</code></td><td>Objetos, migraciones, triggers, tipos, permisos TVP y casos decimales puntuales.</td></tr>
+<tr><td><code>database/tests/02_pool_identity_pa29.sql</code></td><td><code>ok</code></td><td>Limpieza de cinco claves de contexto ante sesión inválida; no cubre alternancia concurrente real.</td></tr>
+<tr><td><code>database/tests/03_save-transaction.sql</code></td><td><code>ok</code></td><td>Demostración aislada de savepoint y cierre de transacción.</td></tr>
+<tr><td><code>database/tests/04_sale-rollback-fault.sql</code></td><td><code>ok</code></td><td>Fallo posterior al encabezado; ausencia de efectos parciales, trigger y fixtures; incidente separado comprobado y limpiado.</td></tr>
+<tr><td><code>pnpm test:smoke</code></td><td>Aprobó, 21 intercambios HTTP</td><td>Cambio inicial, revocación, permisos, inventario, tema, cotización <code>100.00/12.00/112.00</code>, venta, caja, reporte e idempotencia secuencial.</td></tr>
+<tr><td><code>pnpm test:e2e</code></td><td><strong>19 aprobadas</strong></td><td>Tres páginas públicas, Claro/Oscuro, 320/768/1280, Axe, CSP y ausencia de errores del navegador.</td></tr>
+<tr><td><code>pnpm test:e2e:private</code></td><td><strong>1 recorrido aprobado; 14 vistas capturadas</strong></td><td>Administrador/escritorio/claro y Cajero/móvil/oscuro contra API/SQL reales; Axe, desbordamiento y errores de consola.</td></tr>
+<tr><td>Inspección visual puntual</td><td>Sin defecto abierto en las capturas revisadas</td><td>Inicio, roles, nueva venta y comprobante; la cuenta se enmascara deliberadamente en las imágenes.</td></tr>
+</tbody></table></div>
+<p>La evidencia sanitizada de humo y las capturas se guardan localmente bajo <code>docs/evidence/runtime/</code>, directorio excluido del control de versiones. Para una aceptación formal deben copiarse a un paquete controlado, incluir hashes/manifiesto, revisión identificable, salida íntegra y ejecutor.</p>
+<h3>Defectos encontrados y corregidos durante la corrida</h3>
+<ul><li><code>mssql</code> intentaba mutar una configuración congelada; ahora recibe una copia mutable.</li><li>El timeout especial de venta usaba una propiedad ignorada; ahora se pasa como <code>requestTimeout</code> soportado por el driver.</li><li>Los booleanos predeterminados de Zod podían conservar cadenas truthy; ahora siempre se transforman y hay regresión automatizada.</li><li>Los marcadores de secretos de <code>.env.example</code> se rechazan al arrancar.</li><li>El editor de roles evaluaba una cuenta nula cuando el modal estaba cerrado.</li><li>Se corrigieron contraste de botones deshabilitados, nombre accesible del menú móvil y fondo del detalle del comprobante oscuro.</li><li>El botón de menú móvil dejó de mostrarse en escritorio.</li><li>La prueba de rollback ya no deja lógica de test en el SP ni datos sintéticos persistentes.</li></ul>
+<h3>Cobertura aún pendiente</h3>
+<ul><li>Carreras reales de stock, recuperación y misma clave mediante clientes simultáneos.</li><li>Alternancia de identidades/cancelación sobre una única conexión física del pool.</li><li>Dataset QC y carga de cinco sesiones con percentiles.</li><li>Teclado completo, zoom 200 %, todos los diálogos/estados y matriz de navegadores.</li><li>Desconexión de Internet y reinstalación/reinicio desde una copia limpia.</li><li>Respaldo y restauración cronometrados con RPO/RTO y <code>DBCC CHECKDB</code> sobre la copia.</li><li>Revisión de seguridad independiente, TLS local y migración del hash académico a un verificador con factor de trabajo.</li></ul>
+<p>Por estas limitaciones, la matriz oficial permanece sin resultados aprobados.</p></section>
+<section class="document-section" data-source="evidence-guide.md"><h2>Guía de evidencia</h2>
+<h3>Principios</h3>
+<p>La evidencia demuestra una ejecución, no una intención. Debe ser reproducible, estar vinculada a una PA/QC y conservar contexto suficiente para que otra persona verifique el resultado.</p>
+<ul><li>No fabricar capturas, salidas ni fechas.</li><li>No usar una captura de código como prueba de comportamiento.</li><li>No incluir contraseñas, cookies, tokens, hashes, salts, cadenas de conexión, claves privadas, datos personales reales ni rutas privadas innecesarias.</li><li>Mantener el identificador de correlación cuando ayude a unir UI, API y bitácora.</li><li>Una evidencia fallida se conserva y se enlaza con la incidencia; no se reemplaza silenciosamente.</li><li>Conservar el comando o pasos exactos, código de salida y revisión del código. Una captura aislada sin esas referencias no acredita una corrida reproducible.</li><li>Acreditar cada resultado esperado de la PA. Un caso feliz no aprueba escenarios negativos, concurrencia, límites o persistencia incluidos en la misma fila.</li></ul>
+<h3>Estado actual y clases de comprobación</h3>
+<p>No existe actualmente <code>docs/evidence/manifest.csv</code> ni un paquete de evidencia de runtime registrado. Por tanto, PA01–PA32 y QC01–QC08 permanecen <strong>Pendiente</strong>.</p>
+<div class="table-scroll"><table><thead><tr>
+<th>Clase</th><th>Ejemplos</th><th>Qué permite afirmar</th>
+</tr></thead><tbody>
+<tr><td>Inspección estática</td><td>leer rutas, SP, permisos, esquema y documentación</td><td>Que existe una implementación diseñada; nunca que se ejecutó correctamente.</td></tr>
+<tr><td>Verificación aislada</td><td>lint, Vitest con mocks, build, análisis sintáctico SQL</td><td>Solo la propiedad concreta comprobada por esa herramienta y revisión. No acredita ACID, permisos SQL reales, UI completa ni PA/QC.</td></tr>
+<tr><td>Smoke test</td><td><code>GET /api/health</code>, <code>pnpm sql:verify</code></td><td>Conectividad inmediata y acceso a <code>sp_VerificarEstado</code>; no salud integral.</td></tr>
+<tr><td>Ejecución PA/QC</td><td>sistema real, datos/precondiciones prescritos, observaciones y artefactos</td><td>Puede cambiar el estado únicamente cuando cubre todos los resultados esperados y queda enlazada en el registro oficial.</td></tr>
+</tbody></table></div>
+<p>Una salida de consola generada durante desarrollo no se convierte retroactivamente en evidencia oficial si no conserva entorno, revisión, datos, comando, hora y archivo íntegro. Puede repetirse bajo el protocolo y registrarse entonces.</p>
+<h3>Estructura recomendada</h3>
+<pre data-language="text"><code>docs/evidence/
+  manifest.csv
+  PA05/
+    AAAAMMDDThhmmssZ-venta-correcta.png
+    AAAAMMDDThhmmssZ-verificacion-sql.txt
+  QC01/
+    run-001-environment.md
+    run-001-raw.csv
+    run-001-summary.json</code></pre>
+<p>No se crea contenido dentro de <code>docs/evidence/</code> hasta disponer de una ejecución real. Los nombres usan UTC y no contienen nombres de personas.</p>
+<h3>Manifiesto mínimo</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Campo</th><th>Descripción</th>
+</tr></thead><tbody>
+<tr><td><code>evidence_id</code></td><td>Identificador único estable.</td></tr>
+<tr><td><code>test_id</code></td><td>PA01–PA32 o QC01–QC08.</td></tr>
+<tr><td><code>captured_at_utc</code></td><td>Instante ISO 8601.</td></tr>
+<tr><td><code>environment_id</code></td><td>Referencia al acta de entorno.</td></tr>
+<tr><td><code>revision</code></td><td>Commit, hash de paquete o identificador inmutable del código ejecutado.</td></tr>
+<tr><td><code>actor_role</code></td><td>Rol sintético usado, no nombre real.</td></tr>
+<tr><td><code>action</code></td><td>Qué se ejecutó.</td></tr>
+<tr><td><code>command_or_steps</code></td><td>Comando exacto o referencia a pasos numerados.</td></tr>
+<tr><td><code>exit_code</code></td><td>Código de salida, cuando aplique; no se omite un fallo.</td></tr>
+<tr><td><code>expected</code></td><td>Resultado esperado relevante.</td></tr>
+<tr><td><code>observed</code></td><td>Resultado realmente observado.</td></tr>
+<tr><td><code>file</code></td><td>Ruta relativa.</td></tr>
+<tr><td><code>sha256</code></td><td>Hash del archivo después de redactar.</td></tr>
+<tr><td><code>redactions</code></td><td>Qué se ocultó y por qué.</td></tr>
+<tr><td><code>correlation_id</code></td><td>Solo si no constituye un secreto y es útil.</td></tr>
+<tr><td><code>executor</code></td><td>Responsable de la corrida.</td></tr>
+</tbody></table></div>
+<h3>Capturas de interfaz</h3>
+<p>Para acceso, inicio, venta, comprobante y módulos administrativos registrar:</p>
+<ul><li>tema y preferencia (<code>Claro</code>, <code>Oscuro</code> o <code>Sistema</code>);</li><li>viewport exacto 320, 768 o 1280 px y escala/zoom;</li><li>navegador/versión;</li><li>estado probado: carga, vacío, sin coincidencias, éxito, validación, conflicto o servicio caído;</li><li>elemento enfocado cuando la prueba sea de teclado;</li><li>consola sin errores inesperados, en una evidencia separada si es necesario.</li></ul>
+<p>Las capturas de comprobante deben ocultar navegación y controles de impresión, usar fondo blanco y no mostrar datos personales reales.</p>
+<h3>Evidencia API</h3>
+<p>Guardar método/ruta, estado HTTP, código público, forma de la respuesta y correlación. Redactar por completo:</p>
+<ul><li>encabezados <code>Cookie</code>, <code>Set-Cookie</code> y <code>X-CSRF-Token</code>;</li><li>cuerpos con contraseña o token de recuperación;</li><li>datos de conexión;</li><li>trazas internas.</li></ul>
+<p>Ejemplo <strong>ilustrativo, no evidencia registrada</strong>:</p>
+<pre data-language="text"><code>POST /api/sales
+HTTP 201
+X-Correlation-Id: 7bd0…2f1c
+Body: { &quot;data&quot;: { &quot;invoiceId&quot;: &quot;42&quot;, &quot;total&quot;: &quot;112.00&quot; } }
+Cookie/CSRF: [REDACTADO]</code></pre>
+<h3>Evidencia SQL</h3>
+<p>Ejecutar verificaciones con una cuenta administrativa de pruebas y guardar consulta, conteos y filas mínimas necesarias. Incluir nombre de base de prueba y build de SQL Server. No exportar columnas secretas. Para concurrencia conservar marcas de tiempo y correlaciones de ambas sesiones.</p>
+<p>La evidencia de rollback comprueba ausencia de todos los efectos y presencia del incidente separado; una excepción de la API por sí sola no demuestra rollback.</p>
+<p>Los archivos bajo <code>database/tests/</code> no son evidencia por existir. La captura debe contener su salida completa, el código de retorno de <code>sqlcmd</code>, las variables no secretas utilizadas y la revisión exacta. <code>02_pool_identity_pa29.sql</code> cubre un caso de limpieza de contexto, no toda PA29; <code>03_save-transaction.sql</code> es didáctico; <code>04_sale-rollback-fault.sql</code> cubre un único punto posterior al encabezado y tampoco aprueba PA06 sin el resto del protocolo y el acta.</p>
+<h3>Rendimiento</h3>
+<p>Conservar:</p>
+<ol><li>acta de equipo/configuración;</li><li>versión/semilla y conteos del dataset;</li><li>20 calentamientos identificados y excluidos;</li><li>al menos 100 mediciones válidas por escenario;</li><li>datos crudos sin redondear;</li><li>script/comando exacto;</li><li>errores, rechazos funcionales, máximo y cálculo p95;</li><li>verificaciones de integridad posteriores.</li></ol>
+<h3>Integridad de archivos</h3>
+<p>Después de redactar, calcular SHA-256 con PowerShell:</p>
+<pre data-language="powershell"><code>Get-FileHash -Algorithm SHA256 -LiteralPath '&lt;ruta-de-evidencia&gt;'</code></pre>
+<p>Registrar el hash en el manifiesto. Si el archivo cambia, crear una nueva revisión y actualizar el manifiesto; no conservar un hash que ya no corresponde.</p>
+<h3>Cambio de estado</h3>
+<p>Antes de modificar una fila de <a href="test-matrix.md">Matriz PA01–PA32</a>, compruebe:</p>
+<ol><li>que la revisión, entorno, datos y precondiciones coinciden con la corrida;</li><li>que todos los resultados esperados de la PA fueron observados, incluidos casos negativos y concurrencia real cuando se exigen;</li><li>que cada archivo existe, fue redactado y su SHA-256 coincide con el manifiesto;</li><li>que el resultado observado no se dedujo de código, mocks o una PA distinta;</li><li>que <code>Aprobada</code>, <code>Fallida</code> o <code>Bloqueada</code> incluye ejecutor y, cuando corresponda, incidencia o causa externa concreta.</li></ol>
+<p>Si falta cualquiera de estos elementos, el estado continúa <strong>Pendiente</strong>. Esta regla también impide declarar cumplimiento QC o aptitud productiva a partir de la documentación.</p></section>
+<section class="document-section" data-source="demo-script.md"><h2>Guion de demostración — 12 minutos</h2>
+<h3>Preparación previa</h3>
+<ul><li>Usar una base de demostración identificada, nunca datos reales.</li><li>Tener API y SQL Server activos, frontend compilado y conectividad de loopback verificada.</li><li>Preparar credenciales privadas temporales para Administrador, Cajero y Auditor; no mostrarlas en pantalla ni incluirlas en el repositorio.</li><li>Tener productos con stock, un cliente, una clave de venta aún no usada y un comprobante histórico.</li><li>Cerrar herramientas que puedan mostrar secretos. Confirmar que la demo no se presenta como evidencia de PA aprobadas.</li></ul>
+<h3>Recorrido cronometrado</h3>
+<div class="table-scroll"><table><thead><tr>
+<th>Tiempo</th><th>Acción</th><th>Mensaje clave</th>
+</tr></thead><tbody>
+<tr><td>00:00–00:40</td><td>Presentar arquitectura local y estado de la entrega.</td><td>React y Express operan bajo un origen; Express llama SP en SQL Server. Las pruebas/métricas solo se afirman con evidencia.</td></tr>
+<tr><td>00:40–01:30</td><td>Abrir <code>/acceso</code>, alternar Claro/Oscuro/Sistema e iniciar como Cajero.</td><td>Preferencia anónima separada; cookie opaca HttpOnly; el Cajero no recibe funciones administrativas.</td></tr>
+<tr><td>01:30–03:15</td><td>En <code>/ventas/nueva</code>, buscar cliente/productos, cambiar cantidades y cotizar.</td><td>SQL decide precio, stock, subtotal e IVA; el navegador no envía precios autoritativos. Mostrar subtotal, IVA y total como cadenas de dos decimales.</td></tr>
+<tr><td>03:15–04:20</td><td>Confirmar una venta y abrir <code>/ventas/:id</code>.</td><td>Factura, detalle, stock, caja y auditoría se confirman en una transacción. La clave UUID evita duplicados.</td></tr>
+<tr><td>04:20–05:00</td><td>Abrir impresión/vista previa.</td><td>El comprobante es histórico, de solo lectura, fondo blanco; imprimir no crea otra venta.</td></tr>
+<tr><td>05:00–05:40</td><td>Mostrar <code>/ventas</code> y explicar “Resultado desconocido”.</td><td>Ante pérdida de respuesta se conserva la misma clave y se consulta el resultado; no se repite manualmente con otra clave.</td></tr>
+<tr><td>05:40–06:35</td><td>Entrar como Administrador; abrir productos y realizar un ajuste con motivo.</td><td>Producto inicia con stock cero; el ajuste es transaccional, exige motivo y <code>rowversion</code>; el historial no se reescribe.</td></tr>
+<tr><td>06:35–07:15</td><td>Mostrar clientes y estados activos/inactivos.</td><td>Se desactiva en lugar de borrar para conservar comprobantes históricos. Paginación y filtros ocurren en servidor.</td></tr>
+<tr><td>07:15–08:00</td><td>Abrir reporte de ventas y filtrar fechas.</td><td><code>REPORTES_LEER</code> ve todas las facturas y totales del filtro completo; un fallo no se presenta como cero.</td></tr>
+<tr><td>08:00–08:50</td><td>Entrar como Auditor y recorrer Accesos, DML y DDL.</td><td>Mostrar actor de aplicación, principal SQL, IP, fecha, operación y resultado; revisar la muestra sin asumir ni exponer secretos.</td></tr>
+<tr><td>08:50–09:45</td><td>Mostrar usuarios, roles y permisos; explicar permisos efectivos del Administrador.</td><td>El bootstrap excluye <code>VENTAS_CREAR</code>; vender requiere un rol explícito. El nombre del rol no sustituye permisos y la API vuelve a validarlos en cada operación.</td></tr>
+<tr><td>09:45–10:35</td><td>Mostrar perfil, cambio de contraseña y recuperación local.</td><td>Política 12–128 sin recorte; SHA2_512+salt es perfil académico; token de 15 minutos, digest y un solo uso.</td></tr>
+<tr><td>10:35–11:15</td><td>Cerrar sesión y comprobar restauración del tema anónimo; mencionar expiración/revocación.</td><td>Cerrar limpia datos sensibles. Cambiar roles/desactivar usuario afecta la siguiente operación protegida.</td></tr>
+<tr><td>11:15–12:00</td><td>Cerrar con matriz PA/QC, respaldo y limitaciones reales.</td><td>PA inicia Pendiente; QC exige dataset/medición. Express no tiene SQL Agent: respaldos con Task Scheduler. No afirmar “producción”.</td></tr>
+</tbody></table></div>
+<h3>Variante didáctica de <code>SAVE TRANSACTION</code></h3>
+<p>Ejecutar únicamente en la base de pruebas y fuera del flujo de venta:</p>
+<ol><li>abrir transacción;</li><li>crear un savepoint;</li><li>efectuar una modificación didáctica no comercial;</li><li>provocar una condición controlada;</li><li>consultar <code>XACT_STATE()</code>;</li><li>hacer rollback al savepoint solo cuando el estado lo permita;</li><li>revertir finalmente toda la transacción didáctica.</li></ol>
+<p>Explicar que una venta no usa el savepoint para conservar encabezado, detalle o caja parciales: ante cualquier fallo se revierte completa.</p></section>
+</main></body></html>

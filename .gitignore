@@ -1,0 +1,36 @@
+# Dependencies and generated bundles
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+secrets/
+private-mailbox/
+
+# SQL Server data and backups
+*.bak
+*.trn
+*.mdf
+*.ndf
+*.ldf
+backups/
+
+# Test evidence may contain environment-specific data
+docs/evidence/runtime/
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Never commit package-manager locks other than pnpm
+package-lock.json
+yarn.lock

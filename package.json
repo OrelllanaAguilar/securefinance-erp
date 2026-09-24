@@ -1,0 +1,34 @@
+{
+  "name": "securefinance-erp",
+  "version": "2.0.0",
+  "private": true,
+  "description": "SecureFinance ERP - aplicación web local académica con React, Express y SQL Server",
+  "type": "module",
+  "packageManager": "pnpm@10.34.4",
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": "10.34.4"
+  },
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names API,WEB --prefix-colors yellow,gray \"pnpm --filter @securefinance/api dev\" \"pnpm --filter @securefinance/web dev\"",
+    "build": "pnpm --filter @securefinance/web build",
+    "start": "pnpm --filter @securefinance/api start",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "test:integration": "pnpm --filter @securefinance/api test:integration",
+    "test:e2e": "pnpm --filter @securefinance/web test:e2e",
+    "test:e2e:private": "pnpm --filter @securefinance/web test:e2e:private",
+    "test:smoke": "node ./tests/runtime-smoke.mjs",
+    "sql:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/Test-Database.ps1",
+    "docs:pdf": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/Build-TechnicalPdf.ps1"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+:on error exit
+USE [$(DatabaseName)];
+GO
+SET XACT_ABORT ON;
+IF OBJECT_ID(N'dbo.SchemaMigration',N'U') IS NULL
+    THROW 51006,N'No existe el registro de migraciones.',1;
+IF EXISTS(SELECT 1 FROM dbo.SchemaMigration WHERE MigrationId='0003_descripcion') RETURN;
+BEGIN TRY
+    BEGIN TRANSACTION;
+    -- Cambio aditivo e idempotente aqui.
+    INSERT dbo.SchemaMigration(MigrationId,Descripcion)
+    VALUES('0003_descripcion',N'Descripcion del cambio');
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;
+GO
