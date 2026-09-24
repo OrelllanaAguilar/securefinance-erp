@@ -193,6 +193,29 @@ describe('API HTTP', () => {
     );
   });
 
+  it('impide generar una contraseña temporal para la propia cuenta', async () => {
+    const database = fakeDatabase(['USUARIOS_GESTIONAR']);
+    const app = createApp({ config: testConfig(), database });
+    const login = await request(app).post('/api/auth/login').send({
+      username: 'admin.demo',
+      password: 'Clave-Temporal-9!',
+    });
+    const cookie = login.headers['set-cookie'][0].split(';')[0];
+
+    const response = await request(app)
+      .post('/api/users/7/reset-password')
+      .set('Cookie', cookie)
+      .set('x-csrf-token', login.body.data.csrfToken)
+      .send({});
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('SELF_PASSWORD_RESET_FORBIDDEN');
+    expect(database.execute).not.toHaveBeenCalledWith(
+      'dbo.sp_GenerarPasswordTemporal',
+      expect.anything(),
+    );
+  });
+
   it('responde 404 en rutas API inexistentes sin servir el SPA', async () => {
     const app = createApp({ config: testConfig(), database: fakeDatabase() });
     const response = await request(app).get('/api/no-existe');

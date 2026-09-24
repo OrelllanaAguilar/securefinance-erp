@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { sql, input, inputTable } from '../db/database.js';
 import { asyncHandler } from '../lib/async-handler.js';
+import { ApiError } from '../lib/api-error.js';
 import { pageParameters, rowVersionBuffer } from '../lib/parameters.js';
 import { firstRow, listResult } from '../lib/result.js';
 import { parseId, usernameSchema } from '../lib/schemas.js';
@@ -167,6 +168,13 @@ export function createUsersRouter() {
     asyncHandler(async (request, response) => {
       const id = parseId(request.params);
       z.object({}).strict().parse(request.body ?? {});
+      if (request.user.id === id) {
+        throw new ApiError(
+          409,
+          'SELF_PASSWORD_RESET_FORBIDDEN',
+          'Use Seguridad en su perfil para cambiar su propia contraseña.',
+        );
+      }
       const password = temporaryPassword();
       await request.app.locals.database.execute('dbo.sp_GenerarPasswordTemporal', {
         ...sessionParameters(request),

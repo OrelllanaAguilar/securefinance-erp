@@ -73,7 +73,7 @@ export default function UsersPage() {
         {state.status === 'ready' && !state.items.length && <EmptyState search={Boolean(query.search)}>{query.search ? 'Prueba con otro término.' : 'Aún no hay usuarios disponibles.'}</EmptyState>}
         {state.status === 'ready' && state.items.length > 0 && <>
           <TableWrap label="Listado de usuarios"><table><thead><tr><th>Usuario</th><th>Nombre</th><th>Roles</th><th>Estado</th><th>Última actualización</th><th className="actions-cell">Acciones</th></tr></thead><tbody>
-            {state.items.map((account) => { const roles = embeddedList(account.roles); return <tr key={entityId(account)}><td><strong>{account.username}</strong><small className="block muted">{account.email || 'Sin correo'}</small></td><td>{account.displayName}</td><td><div className="chip-list">{roles.length ? roles.map((role) => <span className="chip" key={role.id || role.name}>{role.name}</span>) : <span className="muted">Sin roles</span>}</div></td><td><div className="cell-stack"><StatusBadge value={account.active === false ? 'Inactivo' : 'Activo'} />{account.mustChangePassword && <small>Cambio de clave pendiente</small>}</div></td><td className="nowrap">{formatDate(account.updatedAt, { includeTime: true })}</td><td className="actions-cell"><div className="row-actions"><button type="button" className="icon-button" onClick={() => setEditor(account)} aria-label={`Editar ${account.username}`}><Pencil size={17} /></button><button type="button" className="icon-button" onClick={() => setResetTarget(account)} aria-label={`Generar contraseña temporal para ${account.username}`}><KeyRound size={17} /></button></div></td></tr>; })}
+            {state.items.map((account) => { const roles = embeddedList(account.roles); const isCurrentUser = String(entityId(account)) === String(entityId(currentUser)); return <tr key={entityId(account)}><td><strong>{account.username}</strong><small className="block muted">{account.email || 'Sin correo'}</small></td><td>{account.displayName}</td><td><div className="chip-list">{roles.length ? roles.map((role) => <span className="chip" key={role.id || role.name}>{role.name}</span>) : <span className="muted">Sin roles</span>}</div></td><td><div className="cell-stack"><StatusBadge value={account.active === false ? 'Inactivo' : 'Activo'} />{account.mustChangePassword && <small>Cambio de clave pendiente</small>}</div></td><td className="nowrap">{formatDate(account.updatedAt, { includeTime: true })}</td><td className="actions-cell"><div className="row-actions"><button type="button" className="icon-button" onClick={() => setEditor(account)} aria-label={`Editar ${account.username}`}><Pencil size={17} /></button>{!isCurrentUser && <button type="button" className="icon-button" onClick={() => setResetTarget(account)} aria-label={`Generar contraseña temporal para ${account.username}`}><KeyRound size={17} /></button>}</div></td></tr>; })}
           </tbody></table></TableWrap>
           <Pagination page={query.page} pageSize={query.pageSize} total={state.total} onPageChange={page} onPageSizeChange={pageSize} />
         </>}
@@ -107,8 +107,14 @@ function UserEditor({ user, rolesState, canManageRoles, onClose, onSaved }) {
         const response = await usersApi.create({ username: values.username, displayName: values.displayName, email: values.email, roleIds: canManageRoles ? values.roleIds : [] });
         onSaved(response.data);
       } else {
-        const payload = { displayName: values.displayName, email: values.email, active: values.active, version: user.version };
-        if (canManageRoles) payload.roleIds = values.roleIds;
+        const payload = { version: user.version };
+        if (values.displayName !== initial.displayName) payload.displayName = values.displayName;
+        if (values.email !== initial.email) payload.email = values.email;
+        if (values.active !== initial.active) payload.active = values.active;
+        const initialRoles = [...initial.roleIds].sort((left, right) => left - right);
+        const selectedRoles = [...values.roleIds].sort((left, right) => left - right);
+        if (canManageRoles && JSON.stringify(selectedRoles) !== JSON.stringify(initialRoles)) payload.roleIds = values.roleIds;
+        if (Object.keys(payload).length === 1) { onSaved(); return; }
         await usersApi.update(entityId(user), payload);
         onSaved();
       }

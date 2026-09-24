@@ -53,7 +53,7 @@ async function readPrivateAccess() {
 }
 
 async function savePrivateAccess(credentials) {
-  await fs.writeFile(currentAccessPath, `${JSON.stringify(credentials, null, 2)}\n`, {
+  await fs.writeFile(currentAccessPath, `${JSON.stringify({ database: environment.DB_NAME, ...credentials }, null, 2)}\n`, {
     encoding: 'utf8',
     flag: 'w',
     mode: 0o600,
@@ -126,6 +126,9 @@ let evidence;
 try {
   const privateAccess = await readPrivateAccess();
   const credentials = privateAccess.credentials;
+  if (credentials.database && credentials.database !== environment.DB_NAME) {
+    throw new Error('Las credenciales privadas pertenecen a otra base de pruebas.');
+  }
   let adminPassword = credentials.admin.password;
   let adminSession = await login(credentials.admin.username, adminPassword);
 
@@ -143,6 +146,26 @@ try {
   if (adminSession.data.user.permissions.includes('VENTAS_CREAR')) {
     throw new Error('El rol Administrador recibió VENTAS_CREAR por defecto.');
   }
+
+  const ownAccountResult = await api(
+    `/api/users?page=1&pageSize=25&search=${encodeURIComponent(credentials.admin.username)}&sort=username&direction=asc`,
+  );
+  const ownAccount = ownAccountResult.payload.data.find(
+    (account) => account.username === credentials.admin.username,
+  );
+  if (!ownAccount) throw new Error('La cuenta administradora actual no aparece en el catálogo de usuarios.');
+  await api(`/api/users/${ownAccount.id}/reset-password`, {
+    method: 'POST',
+    body: {},
+    expected: [409],
+  });
+  const ownRoles = (Array.isArray(ownAccount.roles) ? ownAccount.roles : JSON.parse(ownAccount.roles || '[]'))
+    .map((role) => role.id);
+  await api(`/api/users/${ownAccount.id}`, {
+    method: 'PATCH',
+    body: { active: ownAccount.active !== false, roleIds: ownRoles, version: ownAccount.version },
+  });
+  await api('/api/auth/session');
 
   const strandedBootstrap = await api('/api/users?page=1&pageSize=25&search=admin.local&sort=username&direction=asc');
   const obsoleteAdmin = strandedBootstrap.payload.data.find(
@@ -210,6 +233,7 @@ try {
   if (!cashierSession.data.user.permissions.includes('VENTAS_CREAR')) {
     throw new Error('El Cajero no recibió VENTAS_CREAR.');
   }
+  await api('/api/sales/9223372036854775807', { expected: [404] });
   credentials.cashier = { username: cashierUsername, password: cashierPassword };
   await savePrivateAccess(credentials);
 
@@ -276,10 +300,12 @@ try {
     checked: [
       'cambio inicial obligatorio y revocación de la clave temporal',
       'Administrador sin VENTAS_CREAR por defecto',
+      'autorestauración temporal bloqueada y edición de seguridad sin cambios conserva la sesión',
       'permisos de Cajero y rechazo de auditoría',
       'preferencia de tema por cuenta',
       'inventario y cotización SQL exacta 100.00/12.00/112.00',
       'venta, detalle, caja, ventas propias, reporte e idempotencia secuencial',
+      'ruta de factura acepta BIGINT completo sin pérdida de precisión',
     ],
     checkpoints,
   };

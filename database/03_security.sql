@@ -690,10 +690,19 @@ BEGIN
             @LockOwner='Transaction',@LockTimeout=15000;
         IF @BloqueoAdministrador<0
             THROW 51004,N'No fue posible serializar el control de administradores.',1;
-        IF NOT EXISTS(SELECT 1 FROM dbo.Usuario WITH(UPDLOCK,HOLDLOCK) WHERE UsuarioId=@UsuarioId) THROW 51003,N'Usuario inexistente.',1;
+        DECLARE @ActivoActual bit;
+        SELECT @ActivoActual=Activo FROM dbo.Usuario WITH(UPDLOCK,HOLDLOCK) WHERE UsuarioId=@UsuarioId;
+        IF @ActivoActual IS NULL THROW 51003,N'Usuario inexistente.',1;
         IF EXISTS(SELECT 1 FROM @Roles x LEFT JOIN dbo.Rol r ON r.RolId=x.Id AND r.Activo=1 WHERE r.RolId IS NULL)
             THROW 51006,N'Rol no valido.',1;
-        IF @Activo=0 AND EXISTS
+        DECLARE @CambioActivo bit=CASE WHEN @Activo IS NOT NULL AND @Activo<>@ActivoActual THEN 1 ELSE 0 END,
+                @CambioRolesEfectivo bit=0;
+        IF @CambiarRoles=1 AND
+        (
+            EXISTS(SELECT 1 FROM dbo.Usuario_Rol ur WHERE ur.UsuarioId=@UsuarioId AND NOT EXISTS(SELECT 1 FROM @Roles x WHERE x.Id=ur.RolId))
+            OR EXISTS(SELECT 1 FROM @Roles x WHERE NOT EXISTS(SELECT 1 FROM dbo.Usuario_Rol ur WHERE ur.UsuarioId=@UsuarioId AND ur.RolId=x.Id))
+        ) SET @CambioRolesEfectivo=1;
+        IF @CambioActivo=1 AND @Activo=0 AND EXISTS
         (
             SELECT 1 FROM dbo.Usuario_Rol ur JOIN dbo.Rol r ON r.RolId=ur.RolId AND r.Activo=1 AND r.EsAdministrador=1
             WHERE ur.UsuarioId=@UsuarioId
@@ -707,10 +716,10 @@ BEGIN
         UPDATE dbo.Usuario SET NombreVisible=COALESCE(@NombreVisible,NombreVisible),
             CorreoRecuperacion=CASE WHEN @CambiarCorreo=1 THEN @Correo ELSE CorreoRecuperacion END,
             Activo=COALESCE(@Activo,Activo), ActualizadoUtc=SYSUTCDATETIME(),
-            VersionSeguridad=CASE WHEN @Activo IS NOT NULL OR @CambiarRoles=1 THEN VersionSeguridad+1 ELSE VersionSeguridad END
+            VersionSeguridad=CASE WHEN @CambioActivo=1 OR @CambioRolesEfectivo=1 THEN VersionSeguridad+1 ELSE VersionSeguridad END
         WHERE UsuarioId=@UsuarioId AND VersionFila=@Version;
         IF @@ROWCOUNT=0 THROW 51009,N'Version obsoleta.',1;
-        IF @CambiarRoles=1
+        IF @CambioRolesEfectivo=1
         BEGIN
             IF EXISTS
             (
@@ -728,7 +737,7 @@ BEGIN
             SELECT @UsuarioId,x.Id,@ActorId FROM @Roles x
             WHERE NOT EXISTS(SELECT 1 FROM dbo.Usuario_Rol ur WHERE ur.UsuarioId=@UsuarioId AND ur.RolId=x.Id);
         END;
-        IF @Activo IS NOT NULL OR @CambiarRoles=1
+        IF @CambioActivo=1 OR @CambioRolesEfectivo=1
             UPDATE dbo.Sesion SET RevocadaUtc=COALESCE(RevocadaUtc,SYSUTCDATETIME()) WHERE UsuarioId=@UsuarioId;
         COMMIT TRANSACTION;
         SELECT u.UsuarioId AS id,u.NombreUsuario AS username,u.NombreVisible AS displayName,u.CorreoRecuperacion AS email,
@@ -755,6 +764,8 @@ BEGIN
     BEGIN TRY
         EXEC dbo.sp_ResolverSesion @SesionHash,@DireccionIP,@CorrelationId,'USUARIOS_GESTIONAR',0,1,
             @ActorId OUTPUT,@Actor OUTPUT,@ActorNombre OUTPUT;
+        IF @ActorId=@UsuarioId
+            THROW 51004,N'Use Seguridad en su perfil para cambiar su propia password.',1;
         BEGIN TRANSACTION;
         IF NOT EXISTS(SELECT 1 FROM dbo.Usuario WITH(UPDLOCK,HOLDLOCK) WHERE UsuarioId=@UsuarioId) THROW 51003,N'Usuario inexistente.',1;
         DECLARE @Salt varbinary(32)=CRYPT_GEN_RANDOM(32);

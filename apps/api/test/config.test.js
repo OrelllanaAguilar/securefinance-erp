@@ -25,4 +25,18 @@ describe('loadConfig', () => {
   ])('rechaza el marcador de ejemplo en %s', (field, value) => {
     expect(() => loadConfig({ ...validEnvironment, [field]: value })).toThrow(/marcador de \.env\.example/u);
   });
+
+  it('normaliza la barra final de los orígenes antes de compararlos', () => {
+    const config = loadConfig({
+      ...validEnvironment,
+      APP_ORIGIN: 'http://127.0.0.1:3000/',
+      DEV_ORIGIN: 'http://localhost:5173/',
+    });
+
+    expect(config.appOrigin).toBe('http://127.0.0.1:3000');
+    expect(config.allowedOrigins).toEqual([
+      'http://127.0.0.1:3000',
+      'http://localhost:5173',
+    ]);
+  });
 });

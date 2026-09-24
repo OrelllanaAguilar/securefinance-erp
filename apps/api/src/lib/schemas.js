@@ -21,6 +21,12 @@ export const moneySchema = z
 
 export const positiveIdSchema = z.coerce.number().int().positive().max(2147483647);
 
+const positiveBigIntIdSchema = z
+  .string()
+  .regex(/^[1-9]\d*$/, 'Use un identificador entero positivo.')
+  .refine((value) => BigInt(value) <= 9223372036854775807n, 'El identificador excede BIGINT.')
+  .transform((value) => BigInt(value));
+
 export const pageQuerySchema = z
   .object({
     page: z.coerce.number().int().positive().default(1),
@@ -42,4 +48,8 @@ export const uuidSchema = z.string().uuid();
 
 export function parseId(parameters) {
   return positiveIdSchema.parse(parameters.id);
+}
+
+export function parseBigIntId(parameters) {
+  return positiveBigIntIdSchema.parse(parameters.id);
 }

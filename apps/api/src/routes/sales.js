@@ -5,7 +5,7 @@ import { ApiError } from '../lib/api-error.js';
 import { asyncHandler } from '../lib/async-handler.js';
 import { pageParameters } from '../lib/parameters.js';
 import { firstRow, listResult, saleResult } from '../lib/result.js';
-import { moneySchema, parseId, uuidSchema } from '../lib/schemas.js';
+import { moneySchema, parseBigIntId, uuidSchema } from '../lib/schemas.js';
 import {
   authenticate,
   requireCsrf,
@@ -161,7 +161,7 @@ export function createSalesRouter() {
     authenticate(),
     requirePermission('VENTAS_CREAR', 'REPORTES_LEER'),
     asyncHandler(async (request, response) => {
-      const id = parseId(request.params);
+      const id = parseBigIntId(request.params);
       const result = await request.app.locals.database.execute('dbo.sp_ConsultarFactura', {
         ...sessionParameters(request),
         FacturaId: input(sql.BigInt, id),

@@ -107,6 +107,8 @@ export function loadConfig(environment = process.env) {
   }
 
   const env = parsed.data;
+  const appOrigin = new URL(env.APP_ORIGIN).origin;
+  const devOrigin = new URL(env.DEV_ORIGIN).origin;
   const mailboxPath = path.resolve(repositoryRoot, env.RECOVERY_MAILBOX_DIR);
   const webDistPath = path.resolve(apiDirectory, '..', env.WEB_DIST_DIR);
   const databaseOptions = {
@@ -137,11 +139,11 @@ export function loadConfig(environment = process.env) {
     host: env.HOST,
     port: env.PORT,
     trustProxy: env.TRUST_PROXY,
-    appOrigin: env.APP_ORIGIN,
+    appOrigin,
     allowedOrigins: Object.freeze(
       env.NODE_ENV === 'development'
-        ? [env.APP_ORIGIN, env.DEV_ORIGIN]
-        : [env.APP_ORIGIN],
+        ? [...new Set([appOrigin, devOrigin])]
+        : [appOrigin],
     ),
     cookie: Object.freeze({
       name: env.COOKIE_NAME,

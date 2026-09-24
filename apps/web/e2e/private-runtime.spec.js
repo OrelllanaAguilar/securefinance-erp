@@ -33,14 +33,14 @@ function parseEnvironment(text) {
   );
 }
 
-async function latestPassedInvoice() {
+async function latestPassedInvoice(databaseName) {
   const files = (await fs.readdir(runtimeEvidenceDirectory))
     .filter((name) => /^runtime-smoke-.+\.json$/u.test(name))
     .sort()
     .reverse();
   for (const name of files) {
     const evidence = JSON.parse(await fs.readFile(path.join(runtimeEvidenceDirectory, name), 'utf8'));
-    if (evidence.status === 'passed' && evidence.invoiceId) return evidence.invoiceId;
+    if (evidence.status === 'passed' && evidence.database === databaseName && evidence.invoiceId) return evidence.invoiceId;
   }
   throw new Error('No existe una evidencia smoke aprobada con factura sintética.');
 }
@@ -71,6 +71,11 @@ async function captureRoute(page, browserErrors, { account, label, route, theme,
   await page.goto(route);
   await expect(page.locator('main h1')).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`${route.replaceAll('/', '\\/')}$`, 'u'));
+  const resolvedTheme = theme === 'oscuro' ? 'dark' : 'light';
+  const expectedHeadingColor = resolvedTheme === 'dark' ? 'rgb(245, 243, 237)' : 'rgb(35, 35, 35)';
+  await expect(page.locator('html')).toHaveAttribute('data-theme', resolvedTheme);
+  await expect.poll(() => page.locator('main h1').evaluate((heading) => getComputedStyle(heading).color))
+    .toBe(expectedHeadingColor);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   const accessibility = await new AxeBuilder({ page }).analyze();
@@ -84,7 +89,13 @@ async function captureRoute(page, browserErrors, { account, label, route, theme,
     path: path.join(screenshotDirectory, `${account}-${label}-${theme}-${viewport.width}.png`),
     fullPage: true,
     animations: 'disabled',
-    mask: [page.locator('.account-button')],
+    mask: [
+      page.locator('.account-button'),
+      page.locator('tbody'),
+      page.locator('.receipt__meta'),
+      page.locator('.details-list dd'),
+      page.locator('.selected-entity'),
+    ],
   });
 }
 
@@ -92,11 +103,12 @@ test('recorrido privado real, accesible y sin errores del navegador', async ({ p
   const environment = parseEnvironment(await fs.readFile(environmentPath, 'utf8'));
   expect(environment.DB_NAME).toMatch(/_Test$/u);
   const credentials = JSON.parse(await fs.readFile(credentialsPath, 'utf8'));
+  expect(credentials.database).toBe(environment.DB_NAME);
   expect(credentials).toMatchObject({
     admin: { username: expect.any(String), password: expect.any(String) },
     cashier: { username: expect.any(String), password: expect.any(String) },
   });
-  const invoiceId = await latestPassedInvoice();
+  const invoiceId = await latestPassedInvoice(environment.DB_NAME);
   await fs.mkdir(screenshotDirectory, { recursive: true });
 
   const browserErrors = [];
