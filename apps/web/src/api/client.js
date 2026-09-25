@@ -30,10 +30,22 @@ export function buildQuery(values = {}) {
 
 export async function request(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
+  const timeoutMs = options.timeoutMs ?? 30_000;
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
   if (options.body !== undefined) headers.set('Content-Type', 'application/json');
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && csrfToken) headers.set('x-csrf-token', csrfToken);
+
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  const suppliedSignal = options.signal;
+  const forwardAbort = () => controller.abort(suppliedSignal.reason);
+  if (suppliedSignal?.aborted) forwardAbort();
+  else suppliedSignal?.addEventListener('abort', forwardAbort, { once: true });
 
   let response;
   try {
@@ -43,10 +55,20 @@ export async function request(path, options = {}) {
       credentials: 'include',
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: controller.signal,
     });
   } catch (cause) {
-    if (cause?.name === 'AbortError') throw cause;
+    if (timedOut) {
+      throw new ApiError('La solicitud tardó demasiado. Comprueba la API y vuelve a intentarlo.', {
+        code: 'REQUEST_TIMEOUT',
+        cause,
+      });
+    }
+    if (suppliedSignal?.aborted || cause?.name === 'AbortError') throw cause;
     throw new ApiError('No se pudo conectar con el servicio. Comprueba que la API esté activa.', { cause });
+  } finally {
+    clearTimeout(timeout);
+    suppliedSignal?.removeEventListener('abort', forwardAbort);
   }
 
   const contentType = response.headers.get('content-type') || '';

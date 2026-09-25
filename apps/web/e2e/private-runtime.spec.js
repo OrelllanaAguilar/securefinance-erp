@@ -33,14 +33,14 @@ function parseEnvironment(text) {
   );
 }
 
-async function latestPassedInvoice(databaseName) {
+async function latestPassedEvidence(databaseName) {
   const files = (await fs.readdir(runtimeEvidenceDirectory))
     .filter((name) => /^runtime-smoke-.+\.json$/u.test(name))
     .sort()
     .reverse();
   for (const name of files) {
     const evidence = JSON.parse(await fs.readFile(path.join(runtimeEvidenceDirectory, name), 'utf8'));
-    if (evidence.status === 'passed' && evidence.database === databaseName && evidence.invoiceId) return evidence.invoiceId;
+    if (evidence.status === 'passed' && evidence.database === databaseName && evidence.invoiceId) return evidence;
   }
   throw new Error('No existe una evidencia smoke aprobada con factura sintética.');
 }
@@ -70,6 +70,7 @@ async function captureRoute(page, browserErrors, { account, label, route, theme,
   await page.setViewportSize(viewport);
   await page.goto(route);
   await expect(page.locator('main h1')).toBeVisible();
+  if (route === '/perfil') await expect(page.getByText('Acceso efectivo')).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`${route.replaceAll('/', '\\/')}$`, 'u'));
   const resolvedTheme = theme === 'oscuro' ? 'dark' : 'light';
   const expectedHeadingColor = resolvedTheme === 'dark' ? 'rgb(245, 243, 237)' : 'rgb(35, 35, 35)';
@@ -99,6 +100,31 @@ async function captureRoute(page, browserErrors, { account, label, route, theme,
   });
 }
 
+async function verifyInventoryAdjustment(page, syntheticDataSuffix) {
+  const code = `SMK-${syntheticDataSuffix}`.toUpperCase();
+  await page.goto('/productos');
+  await page.locator('#product-search').fill(code);
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  const row = page.getByRole('row').filter({ hasText: code });
+  await expect(row).toHaveCount(1);
+  const stockCell = row.locator('td').nth(4);
+  const previousStock = Number((await stockCell.textContent())?.trim());
+  expect(Number.isInteger(previousStock)).toBe(true);
+
+  await row.getByRole('button', { name: /Ajustar inventario/u }).click();
+  await page.locator('#quantity-change').fill('1');
+  await page.locator('#inventory-reason').fill('Comprobación automática del ajuste de inventario');
+  const responsePromise = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && /\/api\/products\/\d+\/inventory$/u.test(new URL(response.url()).pathname)
+  ));
+  await page.getByRole('button', { name: 'Aplicar ajuste' }).click();
+  const response = await responsePromise;
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(stockCell).toHaveText(String(previousStock + 1));
+}
+
 test('recorrido privado real, accesible y sin errores del navegador', async ({ page }) => {
   const environment = parseEnvironment(await fs.readFile(environmentPath, 'utf8'));
   expect(environment.DB_NAME).toMatch(/_Test$/u);
@@ -108,7 +134,9 @@ test('recorrido privado real, accesible y sin errores del navegador', async ({ p
     admin: { username: expect.any(String), password: expect.any(String) },
     cashier: { username: expect.any(String), password: expect.any(String) },
   });
-  const invoiceId = await latestPassedInvoice(environment.DB_NAME);
+  const evidence = await latestPassedEvidence(environment.DB_NAME);
+  const invoiceId = evidence.invoiceId;
+  expect(evidence.syntheticDataSuffix).toEqual(expect.any(String));
   await fs.mkdir(screenshotDirectory, { recursive: true });
 
   const browserErrors = [];
@@ -116,9 +144,14 @@ test('recorrido privado real, accesible y sin errores del navegador', async ({ p
     if (message.type() === 'error') browserErrors.push(`console: ${message.text()}`);
   });
   page.on('pageerror', (error) => browserErrors.push(`page: ${error.message}`));
+  let profileRequests = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'GET' && new URL(request.url()).pathname === '/api/me') profileRequests += 1;
+  });
 
   await signIn(page, credentials.admin);
   await selectTheme(page, 'claro', 'light');
+  await verifyInventoryAdjustment(page, evidence.syntheticDataSuffix);
   for (const [label, route] of ADMIN_ROUTES) {
     await captureRoute(page, browserErrors, {
       account: 'admin',
@@ -128,6 +161,8 @@ test('recorrido privado real, accesible y sin errores del navegador', async ({ p
       viewport: { width: 1440, height: 900 },
     });
   }
+  await page.waitForTimeout(500);
+  expect(profileRequests).toBe(1);
   await signOut(page);
 
   await signIn(page, credentials.cashier);

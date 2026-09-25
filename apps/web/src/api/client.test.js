@@ -31,4 +31,15 @@ describe('cliente HTTP', () => {
     await expect(request('/api/test')).rejects.toBeInstanceOf(ApiError);
     await expect(request('/api/test')).rejects.toMatchObject({ status: 0, code: 'NETWORK_ERROR' });
   });
+
+  it('cancela una solicitud bloqueada y devuelve un error recuperable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_path, options) => new Promise((_resolve, reject) => {
+      options.signal.addEventListener('abort', () => reject(new DOMException('Abortada', 'AbortError')), { once: true });
+    }));
+
+    await expect(request('/api/test', { timeoutMs: 10 })).rejects.toMatchObject({
+      status: 0,
+      code: 'REQUEST_TIMEOUT',
+    });
+  });
 });

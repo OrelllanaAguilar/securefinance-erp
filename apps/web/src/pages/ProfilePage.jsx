@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyRound, ShieldCheck, UserRound } from 'lucide-react';
 import { Link } from 'react-router';
 import { meApi } from '../api/endpoints.js';
@@ -10,19 +10,22 @@ import { permissionSet } from '../utils/permissions.js';
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
+  const userRef = useRef(user);
   const [state, setState] = useState({ status: 'loading', data: null, error: null });
+
+  useEffect(() => { userRef.current = user; }, [user]);
 
   const load = useCallback(async (signal) => {
     setState((current) => ({ ...current, status: 'loading', error: null }));
     try {
       const response = await meApi.get(signal);
-      const data = response.data || user || {};
+      const data = response.data || userRef.current || {};
       setState({ status: 'ready', data, error: null });
       updateUser(data);
     } catch (error) {
       if (error?.name !== 'AbortError') setState({ status: 'error', data: null, error });
     }
-  }, [updateUser, user]);
+  }, [updateUser]);
 
   useEffect(() => {
     const controller = new AbortController();
